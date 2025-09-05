@@ -3,8 +3,9 @@ declare(strict_types=1);
 
 namespace App\Llm;
 
-use GuzzleHttp\Client;
 use RuntimeException;
+use GuzzleHttp\Client;
+use App\Llm\AbstractLlmClient;
 
 final class OllamaClient extends AbstractLlmClient
 {

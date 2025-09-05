@@ -136,7 +136,9 @@ return [
             'source_of_request' => 'Request origin: LIS, STS, or API (EMR/DHIS2). Use to filter by source system',
             'system_patient_code' => 'Internal patient identifier - NEVER SELECT for privacy',
             'request_created_datetime' => 'System request creation timestamp',
-            'last_modified_by' => 'Last modifier user ID. Links to user_details table via user_id'
+            'last_modified_by' => 'Last modifier user ID. Links to user_details table via user_id',
+            'instrument_id' => 'Testing machine/analyzer/instrument identifier. Links to instrument_machines table or instruments table. Never return instrument_id, always make sure you return the instrument_machines.config_machine_name or instruments.machine_name',
+            'vl_test_platform' => 'Testing machine/analyzer/instrument name'
         ],
         
         'facility_details' => [

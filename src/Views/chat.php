@@ -347,6 +347,16 @@ $providerNames = array_keys($providers);
             gap: 0.25rem;
         }
 
+        .context-debug-info {
+            margin-top: 0.5rem;
+            padding: 0.5rem;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            color: #6c757d;
+        }
+
         /* Chat input */
         .chat-input {
             padding: 1.5rem;
@@ -539,6 +549,9 @@ $providerNames = array_keys($providers);
                 <button class="btn btn-modern" id="toggle-settings">
                     <i class="bi bi-gear"></i> Settings
                 </button>
+                <button id="reset-context-btn" class="btn btn-modern" title="Reset conversation context">
+                    <i class="bi bi-arrow-counterclockwise"></i> Reset Context
+                </button>
                 <button id="clear-btn" class="btn btn-modern">
                     <i class="bi bi-arrow-clockwise"></i> Clear
                 </button>
@@ -626,6 +639,7 @@ $providerNames = array_keys($providers);
         const sendBtn = document.getElementById('send-btn');
         const cancelBtn = document.getElementById('cancel-btn');
         const clearBtn = document.getElementById('clear-btn');
+        const resetContextBtn = document.getElementById('reset-context-btn');
         const toggleSettingsBtn = document.getElementById('toggle-settings');
         const settingsPanel = document.getElementById('settings-panel');
         const providerSelect = document.getElementById('provider-select');
@@ -765,6 +779,9 @@ $providerNames = array_keys($providers);
                     try {
                         const err = await res.json();
                         errorText = err.detail || err.error || errorText;
+                        if(err.raw_sql) {
+                            errorText += `<br><div class="sql-query-block"><strong>Generated SQL:</strong><br>${err.raw_sql}</div>`;
+                        }
                     } catch {}
                     if (chatBody.contains(loadingMessage)) chatBody.removeChild(loadingMessage);
                     addMessage('ai', `<strong>Error:</strong> ${errorText}`);
@@ -812,6 +829,18 @@ $providerNames = array_keys($providers);
             </div>`;
                 }
 
+    //             if (data.debug && data.debug.conversation_context) {
+    //                 const contextInfo = data.debug.conversation_context;
+    //                 responseHtml += `<div class="context-debug-info">
+    //     <strong>Context Debug:</strong><br>
+    //     <small>
+    //         History Count: ${data.debug.conversation_history_count || 0}<br>
+    //         Has Context: ${contextInfo.has_context ? 'Yes' : 'No'}<br>
+    //         ${contextInfo.has_context ? `Suggested Filters: ${(contextInfo.suggested_filters || []).length}` : ''}
+    //     </small>
+    // </div>`;
+    //             }
+
                 addMessage('ai', responseHtml);
 
             } catch (error) {
@@ -849,6 +878,38 @@ $providerNames = array_keys($providers);
         clearBtn.addEventListener('click', () => {
             localStorage.removeItem('chatHistory');
             chatBody.innerHTML = '<div class="ai-message"><div class="message-content">Hello! Ask me a question about InteLIS.</div></div>';
+        });
+
+        resetContextBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        clear_context: true
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Context cleared:', data.message);
+
+                    // Show brief confirmation message
+                    const confirmMsg = document.createElement('div');
+                    confirmMsg.className = 'ai-message';
+                    confirmMsg.innerHTML = '<div class="message-content"><em>Conversation context has been reset. Previous queries will no longer influence new questions.</em></div>';
+                    chatBody.appendChild(confirmMsg);
+                    chatBody.scrollTop = chatBody.scrollHeight;
+
+                    // Save to history so the confirmation persists
+                    localStorage.setItem('chatHistory', chatBody.innerHTML);
+                }
+            } catch (error) {
+                console.error('Failed to reset context:', error);
+                addMessage('ai', '<strong>Error:</strong> Failed to reset conversation context.');
+            }
         });
 
         document.addEventListener('keydown', e => {

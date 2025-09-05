@@ -73,7 +73,17 @@ $app->post('/ask', function ($request, $response) use ($queryService, $databaseS
     try {
         $body  = (array)$request->getParsedBody();
         $query = trim((string)($body['q'] ?? ''));
-        $appCfg = require __DIR__ . '/../config/app.php';
+
+
+        // Check for clear context request
+        if (isset($body['clear_context']) && $body['clear_context']) {
+            $queryService->clearConversationHistory();
+            $response->getBody()->write(json_encode([
+                'message' => 'Conversation context cleared',
+                'context_reset' => true
+            ]));
+            return $response->withHeader('Content-Type', 'application/json');
+        }
 
         if ($query === '') {
             $response->getBody()->write(json_encode(['error' => 'Missing "q" parameter']));
@@ -110,7 +120,10 @@ $app->post('/ask', function ($request, $response) use ($queryService, $databaseS
                 'context_summary' => [
                     'schema_tables' => $queryResult['tables_selected'],
                     'context_sections' => ($queryResult['context'])
-                ]
+                ],
+                'conversation_context' => $queryResult['conversation_context'] ?? [],
+                'conversation_history_count' => count($queryService->getConversationHistory()),
+                'conversation_history' => $queryService->getConversationHistory()
             ]
         ];
 
