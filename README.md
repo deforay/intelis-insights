@@ -21,25 +21,46 @@ This generates `var/schema.json`. Re‑run it whenever the database schema chang
 ## Use It
 
 * **Web UI**: open `/chat` and ask a question.
-* **API**: `POST /ask` with JSON
+* **API**:
 
-```json
-{
-  "q": "How many VL tests in the last 6 months?",
-  "provider": "ollama|openai|anthropic",  
-  "model": "optional-model-id"
-}
-```
+  * **Ask a question**
 
-**Response (minimal shape)**
+    ```http
+    POST /ask
+    Content-Type: application/json
+    {
+      "q": "How many VL tests in the last 6 months?",
+      "provider": "ollama|openai|anthropic",  
+      "model": "optional-model-id"
+    }
+    ```
 
-```json
-{
-  "sql": "SELECT …",
-  "rows": [ { "col": "val" } ],
-  "timing": { "provider": "…", "model_used": "…", "total_ms": 0 }
-}
-```
+    **Response (minimal shape)**
+
+    ```json
+    {
+      "sql": "SELECT …",
+      "rows": [ { "col": "val" } ],
+      "timing": { "provider": "…", "model_used": "…", "total_ms": 0 }
+    }
+    ```
+  * **Clear conversation context** (reset the server-side context window)
+
+    ```http
+    POST /ask
+    Content-Type: application/json
+    {
+      "clear_context": true
+    }
+    ```
+
+    **Response**
+
+    ```json
+    { "message": "Conversation context cleared", "context_reset": true }
+    ```
+
+    *Note:* when `clear_context` is `true`, it is handled immediately and any `q` value (if present) is ignored for that request.
 
 ## LLM Providers
 
