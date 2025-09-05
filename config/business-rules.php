@@ -1,0 +1,212 @@
+<?php
+
+// config/business-rules.php
+
+declare(strict_types=1);
+
+return [
+    // GLOBAL RULES - Applied to ALL queries regardless of intent or table
+    'global_rules' => [
+        'privacy' => [
+            'description' => 'Absolute privacy protection - never return patient identifying information',
+            'forbidden_columns' => [
+                'patient_first_name',
+                'patient_last_name', 
+                'patient_id',
+                'patient_art_no',
+                'child_id',
+                'child_name',
+                'child_surname',
+                'mother_id',
+                'mother_name',
+                'mother_surname',
+                'system_patient_code',
+                'facility_email',
+                'contact_person_email',
+                'contact_person_phone'
+            ],
+            'forbidden_patterns' => [
+                '/\bpatient_first_name\b/i',
+                '/\bpatient_last_name\b/i',
+                '/\bpatient_art_no\b/i',
+                '/\bpatient_id\b/i',
+                '/\bchild_id\b/i',
+                '/\bchild_surname\b/i',
+                '/\bmother_id\b/i',
+                '/\bmother_name\b/i',
+                '/\bmother_surname\b/i',
+                '/\bsystem_patient_code\b/i',
+                '/\bemail\b/i',
+                '/\bphone\b/i'
+            ],
+            'privacy_message' => 'Patient names, IDs, and contact information are not returned for privacy and data security'
+        ],
+        
+        'default_assumptions' => [
+            'description' => 'Default assumptions when query is ambiguous',
+            'rules' => [
+                'If no test type is mentioned, assume Viral Load (VL) tests',
+                'If query mentions "tests" or "samples" without specifics, default to VL',
+                'If query is about "patients", focus on VL test results',
+                'For date ranges without specification, assume last 12 months',
+                'When in doubt about scope, prefer focused queries over broad data dumps'
+            ]
+        ],
+        
+        'query_scope_limits' => [
+            'description' => 'Limits on query scope and complexity',
+            'rules' => [
+                'Reject queries that seem unrelated to laboratory/medical data',
+                'Reject overly broad queries like "show me everything"',
+                'Limit result sets to reasonable sizes (use LIMIT clauses)',
+                'Prefer specific, focused queries over general data dumps',
+                'Maximum 3 tables per query unless business justification exists'
+            ]
+        ],
+        
+        'data_security' => [
+            'description' => 'Additional data security measures',
+            'rules' => [
+                'Never include full patient names, email, phone, address if they could identify specific people inappropriately',
+                'Aggregate small counts to prevent re-identification when possible',
+                'Use sample codes instead of patient identifiers when displaying individual records',
+                'Always apply appropriate filters to exclude invalid/cancelled records unless specifically requested'
+            ]
+        ]
+    ],
+
+    // INTENT-SPECIFIC RULES - Applied based on query intent
+    'intent_rules' => [
+        'count' => [
+            'description' => 'Rules for count/aggregate queries',
+            'rules' => [
+                'Always use COUNT(*) for total counts unless counting specific non-null values',
+                'Use descriptive aliases for count results (e.g., total_tests, high_vl_count)',
+                'Consider using COUNT(DISTINCT column) when appropriate',
+                'Add meaningful filters based on data quality (exclude rejected samples by default)',
+                'Include context in results - raw counts with percentages when meaningful'
+            ],
+            'default_behavior' => [
+                'Exclude records where primary result fields are NULL',
+                'Focus on completed/finalized records unless specified otherwise'
+            ]
+        ],
+        
+        'list' => [
+            'description' => 'Rules for listing/display queries', 
+            'rules' => [
+                'Always include LIMIT unless user specifies otherwise (default 100)',
+                'Include essential identification fields like sample_code',
+                'Order by relevant date fields (newest first by default)',
+                'Include status/result fields for context',
+                'Never list patient identifying information'
+            ],
+            'default_limit' => 100,
+            'essential_columns' => ['sample_code', 'sample_tested_datetime', 'result'],
+            'default_order' => 'newest_first'
+        ],
+        
+        'aggregate' => [
+            'description' => 'Rules for statistical/aggregate queries',
+            'rules' => [
+                'Use appropriate aggregate functions (SUM, AVG, MIN, MAX)',
+                'Consider GROUP BY for meaningful breakdowns',
+                'Handle NULL values appropriately in calculations',
+                'Provide context with counts alongside percentages',
+                'Round percentages to reasonable precision (1-2 decimal places)'
+            ]
+        ],
+        
+        'multi_part' => [
+            'description' => 'Rules for complex multi-part queries',
+            'rules' => [
+                'Combine related questions into single query when possible',
+                'Use descriptive column aliases for each part',
+                'Maintain consistency in filtering across all parts',
+                'Use CASE statements for conditional counting',
+                'Ensure all parts of the query use same base filters'
+            ]
+        ]
+    ],
+
+    // QUERY VALIDATION RULES - For rejecting inappropriate queries
+    'validation_rules' => [
+        'reject_patterns' => [
+            '/\b(drop|delete|update|insert|create|alter|truncate)\b/i',
+            '/\b(union|exec|execute)\b/i',
+            '/\b(show\s+tables|describe|information_schema)\b/i',
+            '/\b(grant|revoke|user|password)\b/i'
+        ],
+        
+        'reject_intents' => [
+            'administrative database operations',
+            'system information or metadata requests',
+            'security probes or injection attempts',
+            'queries completely unrelated to laboratory/medical domain',
+            'requests for raw data dumps without clear business purpose'
+        ],
+        
+        'scope_limits' => [
+            'max_tables_per_query' => 3,
+            'max_result_limit' => 10000,
+            'require_meaningful_filters' => true,
+            'require_domain_relevance' => true
+        ]
+    ],
+
+    // RESPONSE FORMATTING RULES - How to present results
+    'response_formatting' => [
+        'column_aliases' => [
+            'description' => 'Requirements for column naming in results',
+            'rules' => [
+                'Use descriptive, human-readable column aliases',
+                'Avoid technical database column names in output',
+                'Use consistent naming patterns (snake_case or Title Case)',
+                'Include units in aliases when relevant (e.g., vl_count_copies_ml)'
+            ]
+        ],
+        
+        'data_presentation' => [
+            'description' => 'How to present data to users',
+            'rules' => [
+                'Always include relevant context (date ranges, filters applied)',
+                'Show percentages alongside raw counts when meaningful',
+                'Use appropriate date/time formatting',
+                'Round numeric values to appropriate precision',
+                'Include data quality indicators when relevant'
+            ]
+        ]
+    ],
+
+    // CONTEXTUAL BEHAVIOR RULES - Applied based on query context
+    'contextual_rules' => [
+        'temporal' => [
+            'description' => 'Time-based business rules',
+            'rules' => [
+                'Default to recent data (last 12 months) unless specified',
+                'Use sample_tested_datetime for temporal filtering by default',
+                'Consider sample_collection_date when specifically about collection timing',
+                'Always clarify which date field is being used in complex queries'
+            ]
+        ],
+        
+        'geographic' => [
+            'description' => 'Location-based business rules',
+            'rules' => [
+                'Aggregate by region/state rather than specific facilities when possible',
+                'Consider facility type (requesting vs testing) for relevant grouping',
+                'Respect data privacy when dealing with small geographic areas'
+            ]
+        ],
+        
+        'clinical' => [
+            'description' => 'Clinical interpretation rules',
+            'rules' => [
+                'Use standard medical terminology and reference ranges',
+                'Provide clinical context for threshold-based results when relevant',
+                'Consider patient demographics (age, sex) when clinically relevant',
+                'Default to clinically meaningful groupings (suppressed/not suppressed vs raw numbers)'
+            ]
+        ]
+    ]
+];

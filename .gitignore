@@ -1,0 +1,43 @@
+# Git ignore file (.gitignore)
+
+# Configuration files with sensitive data
+config/app.php
+config/db.php
+
+# Generated schema file
+var/schema.json
+
+# Composer dependencies
+vendor/
+
+# Common PHP development files
+*.log
+*.tmp
+*.cache
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary and build files
+tmp/
+temp/
+build/
+dist/
+
+# Environment files
+.env
+.env.local
+.env.production
