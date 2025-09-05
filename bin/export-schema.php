@@ -13,7 +13,7 @@ $dbName = $app['db_name'] ?? 'vlsm';
 $explicitReferenceTables = [
     // Add specific table names you want to include data for
     'facility_details	',
-    'facility_type', 
+    'facility_type',
     's_available_country_forms',
     'instruments',
     'instrument_machines',
@@ -22,13 +22,11 @@ $explicitReferenceTables = [
 ];
 
 // Get all tables/views
-$tablesStmt = $pdo->prepare("
-  SELECT TABLE_NAME, TABLE_TYPE
-  FROM INFORMATION_SCHEMA.TABLES
-  WHERE TABLE_SCHEMA = :db
-    AND TABLE_TYPE IN ('BASE TABLE','VIEW')
-  ORDER BY TABLE_NAME
-");
+$tablesStmt = $pdo->prepare("SELECT TABLE_NAME, TABLE_TYPE
+                                        FROM INFORMATION_SCHEMA.TABLES
+                                        WHERE TABLE_SCHEMA = :db
+                                        AND TABLE_TYPE IN ('BASE TABLE','VIEW')
+                                        ORDER BY TABLE_NAME");
 $tablesStmt->execute([':db' => $dbName]);
 $allTables = $tablesStmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -51,25 +49,25 @@ $colsStmt = $pdo->prepare("SELECT
     k.REFERENCED_TABLE_NAME, 
     k.REFERENCED_COLUMN_NAME,
     k.CONSTRAINT_NAME
-  FROM INFORMATION_SCHEMA.COLUMNS c
-  LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE k 
+    FROM INFORMATION_SCHEMA.COLUMNS c
+    LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE k 
     ON c.TABLE_SCHEMA = k.TABLE_SCHEMA 
     AND c.TABLE_NAME = k.TABLE_NAME 
     AND c.COLUMN_NAME = k.COLUMN_NAME
     AND k.REFERENCED_TABLE_NAME IS NOT NULL
-  WHERE c.TABLE_SCHEMA = :db AND c.TABLE_NAME = :t
-  ORDER BY c.ORDINAL_POSITION
+    WHERE c.TABLE_SCHEMA = :db AND c.TABLE_NAME = :t
+    ORDER BY c.ORDINAL_POSITION
 ");
 
 foreach ($allTables as $table) {
     $tableName = $table['TABLE_NAME'];
     $tableType = $table['TABLE_TYPE'];
-    
+
     echo "Processing table: {$tableName}\n";
-    
+
     $colsStmt->execute([':db' => $dbName, ':t' => $tableName]);
     $columns = [];
-    
+
     while ($r = $colsStmt->fetch(PDO::FETCH_ASSOC)) {
         $columnInfo = [
             'name' => $r['COLUMN_NAME'],
@@ -77,7 +75,7 @@ foreach ($allTables as $table) {
             'nullable' => $r['IS_NULLABLE'] === 'YES',
             'key' => $r['COLUMN_KEY'],
         ];
-        
+
         // Add optional metadata
         if ($r['COLUMN_DEFAULT'] !== null) {
             $columnInfo['default'] = $r['COLUMN_DEFAULT'];
@@ -94,9 +92,9 @@ foreach ($allTables as $table) {
         if ($r['COLUMN_COMMENT']) {
             $columnInfo['comment'] = $r['COLUMN_COMMENT'];
         }
-        
+
         $columns[] = $columnInfo;
-        
+
         // Capture foreign key relationships
         if ($r['REFERENCED_TABLE_NAME']) {
             $relationships[] = [
@@ -108,16 +106,16 @@ foreach ($allTables as $table) {
             ];
         }
     }
-    
+
     $tables[$tableName] = [
         'type' => strtolower($tableType),
         'columns' => $columns
     ];
-    
+
     // Check if this is a reference table and should include data
-    $isReferenceTable = in_array($tableName, $explicitReferenceTables) || 
-                       str_starts_with($tableName, 'r_');
-    
+    $isReferenceTable = in_array($tableName, $explicitReferenceTables) ||
+        str_starts_with($tableName, 'r_');
+
     if ($isReferenceTable) {
         echo "  -> Including reference data for {$tableName}\n";
         $referenceData[$tableName] = getReferenceTableData($pdo, $tableName);
@@ -151,21 +149,20 @@ function getReferenceTableData(PDO $pdo, string $tableName): array
         $countStmt = $pdo->prepare("SELECT COUNT(*) as cnt FROM `{$tableName}`");
         $countStmt->execute();
         $count = (int)$countStmt->fetchColumn();
-        
+
         // Limit reference data to reasonable size (adjust as needed)
         $limit = $count > 1000 ? 100 : ($count > 100 ? 50 : $count);
-        
+
         // Get sample data with intelligent column selection
         $dataStmt = $pdo->prepare("SELECT * FROM `{$tableName}` LIMIT {$limit}");
         $dataStmt->execute();
         $data = $dataStmt->fetchAll(PDO::FETCH_ASSOC);
-        
+
         return [
             'total_rows' => $count,
             'sample_rows' => $limit,
             'data' => $data
         ];
-        
     } catch (Exception $e) {
         echo "  -> Warning: Could not fetch data for {$tableName}: " . $e->getMessage() . "\n";
         return [

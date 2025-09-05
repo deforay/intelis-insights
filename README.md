@@ -75,11 +75,11 @@ This generates `var/schema.json`. Re‑run it whenever the database schema chang
 
 ```mermaid
 graph TD
-  U["User Query in Natural Language (via UI or API)"] --> QS["QueryService builds context<br/>(apply privacy filters)"]
-  SCH["Predefined schema.json"] --> QS
+  U["User Query in Natural Language (via UI or API)"] --> QS["<strong>QueryService generates Prompt for LLM.</strong> <br><br>User Query, Schema, Business rules, and Field Guides are attached to Prompt "]
+  SCH["Database Schema - without any actual data"] --> QS
   BR["Predefined Business Rules"] --> QS
   FG["Predefined Field Guide"] --> QS
-  QS --> LLM["LLM generates SQL"]
+  QS --> LLM["LLM generates SQL based on Prompt"]
   LLM --> VAL["Validate SQL & enforce privacy"]
   VAL --> DB["MySQL executes SQL"]
   DB --> RESP["Response JSON"]

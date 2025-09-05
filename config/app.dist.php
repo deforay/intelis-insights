@@ -30,6 +30,7 @@ return [
             'anthropic' => [
                 'api_key'  => getenv('ANTHROPIC_API_KEY') ?: '',
                 'base_url' => getenv('ANTHROPIC_BASE_URL') ?: 'https://api.anthropic.com',
+                // pick a contemporary small/cheap reasoning/code model you have access to
                 'model'    => getenv('ANTHROPIC_MODEL') ?: 'claude-opus-4-1-20250805',
                 'timeout'  => 30,
             ],
