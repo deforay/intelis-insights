@@ -107,7 +107,7 @@ class QueryService
         $conversationContext = $this->contextService->getContextForNewQuery($query);
 
         try {
-            // UPDATED: Enhanced intent analysis with business rules AND conversation context
+            // intent analysis with business rules AND conversation context
             $intentAnalysis = $this->detectQueryIntentWithBusinessRules($query, $conversationContext);
 
             if (!is_array($intentAnalysis) || !isset($intentAnalysis['type']) || !isset($intentAnalysis['intents'])) {
@@ -128,7 +128,7 @@ class QueryService
             $intentAnalysis = ['type' => $intentType, 'intents' => $intents];
         }
 
-        // UPDATED: Table selection with business rules AND context
+        // Table selection with business rules AND context
         $tablesToUse = $this->selectRelevantTablesWithBusinessRules($query, $intentType, $conversationContext);
 
         $context = $this->buildPromptContext($intentType, $tablesToUse, $query, $conversationContext);
@@ -214,7 +214,7 @@ class QueryService
                 }
             }
         } elseif (!empty($conversationContext['references_missing_context'])) {
-            // NEW: Handle case where query references context that doesn't exist
+            // Handle case where query references context that doesn't exist
             throw new RuntimeException($conversationContext['suggested_response']);
         }
 
@@ -294,7 +294,7 @@ PROMPT;
         $qLower = strtolower($query);
         $selectedTables = [];
 
-        // Enhanced table patterns with test type logic from field guide
+        // Table patterns with test type logic from field guide
         $testTypeLogic = $this->fieldGuide['test_type_logic'] ?? [];
 
         $tableGroups = [

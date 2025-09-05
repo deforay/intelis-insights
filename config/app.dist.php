@@ -8,7 +8,7 @@ return [
     'schema_path'   => __DIR__ . '/../var/schema.json',
     'default_limit' => 200,
 
-    // NEW: default provider + models
+    // default provider + models
     'llm' => [
         // 'ollama' | 'openai' | 'anthropic'
         'provider' => getenv('LLM_PROVIDER') ?: 'openai',

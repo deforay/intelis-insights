@@ -32,14 +32,13 @@ $tablesStmt = $pdo->prepare("
 $tablesStmt->execute([':db' => $dbName]);
 $allTables = $tablesStmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Build enhanced schema structure
+// Build schema structure
 $tables = [];
 $relationships = [];
 $referenceData = [];
 
-// Enhanced column query with more metadata
-$colsStmt = $pdo->prepare("
-  SELECT 
+// Column query with more metadata
+$colsStmt = $pdo->prepare("SELECT 
     c.COLUMN_NAME, 
     c.DATA_TYPE, 
     c.IS_NULLABLE, 
@@ -125,7 +124,7 @@ foreach ($allTables as $table) {
     }
 }
 
-// Build the enhanced schema
+// Build the schema
 $schema = [
     'version' => '2.0',
     'generated_at' => date('Y-m-d H:i:s'),
@@ -137,7 +136,7 @@ $schema = [
 
 @mkdir(dirname($app['schema_path']), 0777, true);
 file_put_contents($app['schema_path'], json_encode($schema, JSON_PRETTY_PRINT));
-echo "Wrote enhanced schema to {$app['schema_path']}\n";
+echo "Wrote schema to {$app['schema_path']}\n";
 echo "Tables processed: " . count($tables) . "\n";
 echo "Relationships found: " . count($relationships) . "\n";
 echo "Reference tables with data: " . count($referenceData) . "\n";

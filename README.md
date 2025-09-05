@@ -1,27 +1,52 @@
 # InteLIS Insights
 
-A service that converts natural language queries into SQL for InteLIS database using LLM providers.
+Convert natural‑language questions into SQL for the InteLIS database. Runs a query plan through an LLM, validates the SQL, executes it, and returns results (with privacy rules enforced).
 
-## Setup
+## Quick Start
 
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   composer install
-   ```
-3. Configure the application:
-   ```bash
-   cp config/app.dist.php config/app.php
-   cp config/db.dist.php config/db.php
-   ```
-4. Edit `config/app.php` and `config/db.php` with your database credentials and LLM provider settings
+1. **Install deps**
 
-## Supported LLM Providers
+```bash
+composer install
+```
 
-- OpenAI (GPT models)
-- Anthropic (Claude models)  
-- Ollama (local models)
+2. **Export the DB schema** (required)
 
-## Usage
+```bash
+php ./bin/export-schema.php
+```
 
-The service converts queries like "How many VL tests in the last 6 months?" into appropriate SQL statements while enforcing privacy rules and business logic.
+This generates `var/schema.json`. Re‑run it whenever the database schema changes.
+
+## Use It
+
+* **Web UI**: open `/chat` and ask a question.
+* **API**: `POST /ask` with JSON
+
+```json
+{
+  "q": "How many VL tests in the last 6 months?",
+  "provider": "ollama|openai|anthropic",  
+  "model": "optional-model-id"
+}
+```
+
+**Response (minimal shape)**
+
+```json
+{
+  "sql": "SELECT …",
+  "rows": [ { "col": "val" } ],
+  "timing": { "provider": "…", "model_used": "…", "total_ms": 0 }
+}
+```
+
+## LLM Providers
+
+Works with **Ollama**, **OpenAI**, and **Anthropic**. Pick a provider/model in the `/chat` settings or send `provider`/`model` in the `/ask` payload.
+
+## Notes
+
+* Privacy rules prevent returning disallowed columns.
+* If you see “model not found”, use an explicit model id (e.g., for Anthropic use a dated id).
+* If SQL generation looks off after schema changes, re‑export the schema (`export-schema.php`).
