@@ -54,20 +54,20 @@ class ConversationContextService
     {
         $conversationHistory = $this->getConversationHistory();
 
-        error_log("getContextForNewQuery called with: '$newQuery'");
-        error_log("History count: " . count($conversationHistory));
+        // error_log("getContextForNewQuery called with: '$newQuery'");
+        // error_log("History count: " . count($conversationHistory));
 
         if (empty($conversationHistory)) {
-            error_log("No conversation history");
+            //error_log("No conversation history");
             return [];
         }
 
         // Check if new query seems to reference previous context
         $seemsToReference = $this->seemsToReferencePrevious($newQuery);
-        error_log("Seems to reference previous: " . ($seemsToReference ? 'YES' : 'NO'));
+        //error_log("Seems to reference previous: " . ($seemsToReference ? 'YES' : 'NO'));
 
         if (!$seemsToReference) {
-            error_log("No reference detected, returning empty context");
+            //error_log("No reference detected, returning empty context");
             return [];
         }
 
@@ -117,17 +117,17 @@ class ConversationContextService
         $queryLower = strtolower($query);
 
         // DEBUG: Log the query and detection
-        error_log("Context Detection - Query: '$query'");
-        error_log("Context Detection - Query Lower: '$queryLower'");
+        // error_log("Context Detection - Query: '$query'");
+        // error_log("Context Detection - Query Lower: '$queryLower'");
 
         foreach ($referenceWords as $word) {
             if (strpos($queryLower, $word) !== false) {
-                error_log("Context Detection - Found reference word: '$word'");
+                //error_log("Context Detection - Found reference word: '$word'");
                 return true;
             }
         }
 
-        error_log("Context Detection - No reference words found");
+        //error_log("Context Detection - No reference words found");
         return false;
     }
 
