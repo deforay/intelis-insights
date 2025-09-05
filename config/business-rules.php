@@ -49,7 +49,8 @@ return [
                 'If query mentions "tests" or "samples" without specifics, default to VL',
                 'If query is about "patients", focus on VL test results',
                 'For date ranges without specification, assume last 12 months',
-                'When in doubt about scope, prefer focused queries over broad data dumps'
+                'When in doubt about scope, prefer focused queries over broad data dumps',
+                'Never use the word gender or patient_gender for column aliases; always use sex where needed. When dealing with gender, always alias it to sex'
             ]
         ],
         
@@ -60,7 +61,8 @@ return [
                 'Reject overly broad queries like "show me everything"',
                 'Limit result sets to reasonable sizes (use LIMIT clauses)',
                 'Prefer specific, focused queries over general data dumps',
-                'Maximum 3 tables per query unless business justification exists'
+                'Maximum 3 tables per query unless business justification exists',
+                'Never use the word gender or patient_gender for column aliases; always use sex where needed. When dealing with gender, always alias it to sex'
             ]
         ],
         
@@ -70,7 +72,8 @@ return [
                 'Never include full patient names, email, phone, address if they could identify specific people inappropriately',
                 'Aggregate small counts to prevent re-identification when possible',
                 'Use sample codes instead of patient identifiers when displaying individual records',
-                'Always apply appropriate filters to exclude invalid/cancelled records unless specifically requested'
+                'Always apply appropriate filters to exclude invalid/cancelled records unless specifically requested',
+                'Never use the word gender or patient_gender for column aliases; always use sex where needed. When dealing with gender, always alias it to sex'
             ]
         ]
     ],
@@ -84,7 +87,8 @@ return [
                 'Use descriptive aliases for count results (e.g., total_tests, high_vl_count)',
                 'Consider using COUNT(DISTINCT column) when appropriate',
                 'Add meaningful filters based on data quality (exclude rejected samples by default)',
-                'Include context in results - raw counts with percentages when meaningful'
+                'Include context in results - raw counts with percentages when meaningful',
+                'Never use the word gender or patient_gender for column aliases; always use sex where needed. When dealing with gender, always alias it to sex'
             ],
             'default_behavior' => [
                 'Exclude records where primary result fields are NULL',
