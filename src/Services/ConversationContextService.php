@@ -26,7 +26,7 @@ class ConversationContextService
         $_SESSION['conversation_history'] = $history;
     }
 
-    public function addQuery(string $query, array $queryResult): void
+    public function addQuery(string $query, array $queryResult, array $dbResult = null): void
     {
         $conversationHistory = $this->getConversationHistory();
 
@@ -35,10 +35,22 @@ class ConversationContextService
             'original_query' => $query,
             'sql' => $queryResult['sql'],
             'intent' => $queryResult['intent'],
+            'intent_details' => $queryResult['intent_details'] ?? [],
             'tables_used' => $queryResult['tables_used'],
             'filters_applied' => $this->extractFilters($queryResult['sql']),
             'summary' => $this->generateQuerySummary($query, $queryResult)
         ];
+
+        // Add database results/output if provided
+        if ($dbResult !== null) {
+            $contextEntry['output'] = [
+                'count' => $dbResult['count'],
+                'execution_time_ms' => $dbResult['execution_time_ms'] ?? 0,
+                'has_data' => $dbResult['count'] > 0,
+                'sample_rows' => $this->extractSampleData($dbResult['rows'] ?? []),
+                'result_summary' => $this->generateResultSummary($dbResult, $queryResult['intent'])
+            ];
+        }
 
         $conversationHistory[] = $contextEntry;
 
@@ -54,20 +66,14 @@ class ConversationContextService
     {
         $conversationHistory = $this->getConversationHistory();
 
-        // error_log("getContextForNewQuery called with: '$newQuery'");
-        // error_log("History count: " . count($conversationHistory));
-
         if (empty($conversationHistory)) {
-            //error_log("No conversation history");
             return [];
         }
 
         // Check if new query seems to reference previous context
         $seemsToReference = $this->seemsToReferencePrevious($newQuery);
-        //error_log("Seems to reference previous: " . ($seemsToReference ? 'YES' : 'NO'));
 
         if (!$seemsToReference) {
-            //error_log("No reference detected, returning empty context");
             return [];
         }
 
@@ -78,7 +84,8 @@ class ConversationContextService
             'recent_queries' => $recentQueries,
             'context_summary' => $this->buildContextSummary($recentQueries),
             'suggested_filters' => $this->suggestContinuationFilters($recentQueries),
-            'common_tables' => $this->getCommonTables($recentQueries)
+            'common_tables' => $this->getCommonTables($recentQueries),
+            'previous_outputs' => $this->buildPreviousOutputsContext($recentQueries)
         ];
     }
 
@@ -92,7 +99,98 @@ class ConversationContextService
         return $this->getConversationHistory();
     }
 
+    private function extractSampleData(array $rows): array
+    {
+        if (empty($rows)) {
+            return [];
+        }
 
+        // Take first 3 rows and limit columns to avoid memory bloat
+        $sampleRows = array_slice($rows, 0, 3);
+        $limitedSample = [];
+
+        foreach ($sampleRows as $row) {
+            $limitedRow = [];
+            $colCount = 0;
+            foreach ($row as $col => $value) {
+                if ($colCount >= 5) break; // Limit to 5 columns per row
+                $limitedRow[$col] = $value;
+                $colCount++;
+            }
+            $limitedSample[] = $limitedRow;
+        }
+
+        return $limitedSample;
+    }
+
+    private function generateResultSummary(array $dbResult, string $intent): string
+    {
+        $count = $dbResult['count'];
+        $rows = $dbResult['rows'] ?? [];
+
+        if ($count === 0) {
+            return "No results found";
+        }
+
+        switch ($intent) {
+            case 'count':
+                return "Found {$count} records";
+                
+            case 'list':
+                return "Retrieved {$count} records" . ($count > 10 ? " (showing sample)" : "");
+                
+            case 'aggregate':
+                // Try to extract aggregate values from first row
+                if (!empty($rows)) {
+                    $firstRow = $rows[0];
+                    $values = [];
+                    foreach ($firstRow as $col => $val) {
+                        if (is_numeric($val)) {
+                            $values[] = "{$col}: {$val}";
+                        }
+                    }
+                    return "Computed: " . implode(', ', array_slice($values, 0, 3));
+                }
+                return "Computed {$count} aggregate values";
+                
+            default:
+                return "Returned {$count} results";
+        }
+    }
+
+    private function buildPreviousOutputsContext(array $recentQueries): array
+    {
+        $outputsContext = [];
+
+        foreach ($recentQueries as $i => $queryEntry) {
+            $output = [
+                'query_number' => $i + 1,
+                'query' => $queryEntry['original_query'],
+                'intent' => $queryEntry['intent'],
+                'intent_details' => $queryEntry['intent_details'] ?? [],
+                'generated_sql' => $queryEntry['generated_sql'] ?? null
+            ];
+
+            if (isset($queryEntry['output'])) {
+                $output['result_count'] = $queryEntry['output']['count'];
+                $output['has_data'] = $queryEntry['output']['has_data'];
+                $output['summary'] = $queryEntry['output']['result_summary'];
+                $output['sample_data'] = $queryEntry['output']['sample_rows'];
+                $output['full_data'] = $queryEntry['output']['full_rows'] ?? [];
+                $output['columns_returned'] = $queryEntry['output']['columns_returned'] ?? [];
+                $output['data_types'] = $queryEntry['output']['data_types'] ?? [];
+                $output['execution_time_ms'] = $queryEntry['output']['execution_time_ms'] ?? 0;
+            } else {
+                $output['result_count'] = 'unknown';
+                $output['has_data'] = false;
+                $output['summary'] = 'No output data stored';
+            }
+
+            $outputsContext[] = $output;
+        }
+
+        return $outputsContext;
+    }
 
     private function seemsToReferencePrevious(string $query): bool
     {
@@ -111,23 +209,23 @@ class ConversationContextService
             'and',
             'also',
             'additionally',
-            'furthermore'
+            'furthermore',
+            'from those',
+            'among them',
+            'of those',
+            'break down',
+            'filter those',
+            'what percentage'
         ];
 
         $queryLower = strtolower($query);
 
-        // DEBUG: Log the query and detection
-        // error_log("Context Detection - Query: '$query'");
-        // error_log("Context Detection - Query Lower: '$queryLower'");
-
         foreach ($referenceWords as $word) {
             if (strpos($queryLower, $word) !== false) {
-                //error_log("Context Detection - Found reference word: '$word'");
                 return true;
             }
         }
 
-        //error_log("Context Detection - No reference words found");
         return false;
     }
 
@@ -139,14 +237,12 @@ class ConversationContextService
         if (preg_match('/WHERE\s+(.+?)(?:\s+GROUP BY|\s+ORDER BY|\s+LIMIT|$)/i', $sql, $matches)) {
             $whereClause = $matches[1];
 
-            // FIXED: Better date filter extraction patterns
-            // Pattern 1: DATE_SUB with INTERVAL
+            // Date filter extraction patterns
             if (preg_match('/sample_tested_datetime\s*>=\s*DATE_SUB\s*\(\s*NOW\s*\(\s*\)\s*,\s*INTERVAL\s+(\d+)\s+(\w+)\s*\)/i', $whereClause, $dateMatch)) {
                 $filters['time_period'] = $dateMatch[1] . ' ' . strtoupper($dateMatch[2]);
                 $filters['time_sql'] = "sample_tested_datetime >= DATE_SUB(NOW(), INTERVAL {$dateMatch[1]} {$dateMatch[2]})";
             }
 
-            // Pattern 2: Other date patterns if needed
             if (preg_match('/sample_tested_datetime\s*>=\s*[\'"]([^\'"]+)[\'"]/i', $whereClause, $dateMatch2)) {
                 $filters['time_period'] = 'specific_date';
                 $filters['time_sql'] = "sample_tested_datetime >= '{$dateMatch2[1]}'";
@@ -196,15 +292,21 @@ class ConversationContextService
 
     private function buildContextSummary(array $recentQueries): string
     {
-        $summary = "Recent conversation context:\n";
+        $summary = "Previous queries and their outputs:\n";
 
-        foreach ($recentQueries as $i => $query) {
+        foreach ($recentQueries as $i => $queryEntry) {
             $num = $i + 1;
-            $summary .= "Q{$num}: {$query['original_query']}\n";
+            $summary .= "Q{$num}: {$queryEntry['original_query']}\n";
+            $summary .= "   Intent: {$queryEntry['intent']}\n";
 
-            if (!empty($query['filters_applied'])) {
+            // Add output summary if available
+            if (isset($queryEntry['output']['result_summary'])) {
+                $summary .= "   Output: {$queryEntry['output']['result_summary']}\n";
+            }
+
+            if (!empty($queryEntry['filters_applied'])) {
                 $filters = [];
-                foreach ($query['filters_applied'] as $key => $value) {
+                foreach ($queryEntry['filters_applied'] as $key => $value) {
                     // Skip the _sql keys for display
                     if (!str_ends_with($key, '_sql')) {
                         $filters[] = "{$key}: {$value}";
@@ -214,6 +316,7 @@ class ConversationContextService
                     $summary .= "   Filters: " . implode(', ', $filters) . "\n";
                 }
             }
+            $summary .= "\n";
         }
 
         return $summary;

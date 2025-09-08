@@ -62,7 +62,7 @@ $providerNames = array_keys($providers);
         }
 
         .chat-container {
-            max-width: 1000px;
+            max-width: 100%;
             margin: 1rem auto;
             border-radius: 16px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
@@ -194,6 +194,7 @@ $providerNames = array_keys($providers);
             flex-direction: column;
             gap: 1rem;
             background: #fafbfc;
+            scroll-behavior: smooth;
         }
 
         .chat-body::-webkit-scrollbar {
@@ -211,7 +212,7 @@ $providerNames = array_keys($providers);
 
         .user-message,
         .ai-message {
-            max-width: 85%;
+            max-width: 95%;
             padding: 1rem 1.25rem;
             border-radius: 16px;
             line-height: 1.5;
@@ -529,7 +530,109 @@ $providerNames = array_keys($providers);
         @media (prefers-color-scheme: dark) {
             /* Keep light theme for consistency with existing design */
         }
+
+
+        /* Chart button styling */
+        .chart-button {
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background: var(--primary-blue);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .chart-button:hover {
+            background: #0b5ed7;
+            transform: translateY(-1px);
+        }
+
+        .chart-options {
+            background: #f8f9fa;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .chart-option-button {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-block;
+        }
+
+        .chart-option-button:hover {
+            background: var(--light-blue);
+            border-color: var(--primary-blue);
+        }
+
+        .medical-chart {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .medical-chart {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            min-height: 400px;
+            max-width: 100%;
+            overflow: hidden;
+        }
+
+        .chart-options {
+            background: #f8f9fa;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            max-width: 100%;
+        }
+
+        .chart-option-button {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-block;
+            max-width: 100%;
+            word-wrap: break-word;
+        }
+
+        .chart-option-button:hover {
+            background: var(--light-blue);
+            border-color: var(--primary-blue);
+        }
+
+        /* Responsive chart containers */
+        @media (max-width: 768px) {
+            .medical-chart {
+                height: 400px !important;
+                min-height: 350px;
+                padding: 0.5rem;
+            }
+        }
     </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 </head>
 
 <body class="p-2">
@@ -628,7 +731,7 @@ $providerNames = array_keys($providers);
 
     </div>
 
-    <!-- Demo configuration (replace with your PHP-generated config) -->
+    <script src="/js/charts.js"></script>
     <script id="llm-config" type="application/json">
         <?= json_encode($clientCfg, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>
     </script>
@@ -665,8 +768,12 @@ $providerNames = array_keys($providers);
             messageDiv.className = sender === 'user' ? 'user-message' : 'ai-message';
             messageDiv.innerHTML = `<div class="message-content">${content}</div>`;
             chatBody.appendChild(messageDiv);
-            chatBody.scrollTop = chatBody.scrollHeight;
+
+            // Smooth scroll to bottom
+            scrollToBottom();
+
             if (saveToHistory) localStorage.setItem('chatHistory', chatBody.innerHTML);
+            return messageDiv;
         }
 
         function addLoadingMessage() {
@@ -686,9 +793,22 @@ $providerNames = array_keys($providers);
         }
 
         function loadChatHistory() {
-            const history = localStorage.getItem('chatHistory');
-            if (history) {
-                chatBody.innerHTML = history;
+    const history = localStorage.getItem('chatHistory');
+    if (history) {
+        chatBody.innerHTML = history;
+        // Use setTimeout to ensure DOM is updated before scrolling
+        setTimeout(() => scrollToBottom(), 100);
+    }
+}
+
+        function scrollToBottom(smooth = false) {
+            if (smooth) {
+                chatBody.scrollTo({
+                    top: chatBody.scrollHeight,
+                    behavior: 'smooth'
+                });
+            } else {
+                chatBody.scrollTop = chatBody.scrollHeight;
             }
         }
 
@@ -779,7 +899,7 @@ $providerNames = array_keys($providers);
                     try {
                         const err = await res.json();
                         errorText = err.detail || err.error || errorText;
-                        if(err.raw_sql) {
+                        if (err.raw_sql) {
                             errorText += `<br><div class="sql-query-block"><strong>Generated SQL:</strong><br>${err.raw_sql}</div>`;
                         }
                     } catch {}
@@ -829,19 +949,26 @@ $providerNames = array_keys($providers);
             </div>`;
                 }
 
-    //             if (data.debug && data.debug.conversation_context) {
-    //                 const contextInfo = data.debug.conversation_context;
-    //                 responseHtml += `<div class="context-debug-info">
-    //     <strong>Context Debug:</strong><br>
-    //     <small>
-    //         History Count: ${data.debug.conversation_history_count || 0}<br>
-    //         Has Context: ${contextInfo.has_context ? 'Yes' : 'No'}<br>
-    //         ${contextInfo.has_context ? `Suggested Filters: ${(contextInfo.suggested_filters || []).length}` : ''}
-    //     </small>
-    // </div>`;
-    //             }
+                //             if (data.debug && data.debug.conversation_context) {
+                //                 const contextInfo = data.debug.conversation_context;
+                //                 responseHtml += `<div class="context-debug-info">
+                //     <strong>Context Debug:</strong><br>
+                //     <small>
+                //         History Count: ${data.debug.conversation_history_count || 0}<br>
+                //         Has Context: ${contextInfo.has_context ? 'Yes' : 'No'}<br>
+                //         ${contextInfo.has_context ? `Suggested Filters: ${(contextInfo.suggested_filters || []).length}` : ''}
+                //     </small>
+                // </div>`;
+                //             }
 
-                addMessage('ai', responseHtml);
+                const messageDiv = addMessage('ai', responseHtml);
+
+                // Add chart button if chart suggestions are available
+                if (data.chart_suggestions && data.chart_suggestions.suitable_for_charts) {
+                    if (typeof chartGenerator !== 'undefined') {
+                        chartGenerator.addChartButton(data, messageDiv);
+                    }
+                }
 
             } catch (error) {
                 if (chatBody.contains(loadingMessage)) chatBody.removeChild(loadingMessage);

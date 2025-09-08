@@ -4,10 +4,11 @@
 declare(strict_types=1);
 
 use Slim\Factory\AppFactory;
-use Psr\Http\Message\ResponseInterface as Response;
-use Psr\Http\Message\ServerRequestInterface as Request;
+use App\Services\ChartService;
 use App\Services\QueryService;
 use App\Services\DatabaseService;
+use Psr\Http\Message\ResponseInterface as Response;
+use Psr\Http\Message\ServerRequestInterface as Request;
 
 require __DIR__ . '/../vendor/autoload.php';
 
@@ -31,6 +32,7 @@ $schema = is_file($schemaPath) ? json_decode(file_get_contents($schemaPath), tru
 // Initialize services
 $queryService = new QueryService($appCfg, $businessRules, $fieldGuide, $schema);
 $databaseService = new DatabaseService($dbCfg);
+$chartService = new ChartService($queryService->getLlmClient());
 
 // Health check routes
 $app->get('/', function ($request, $response) {
@@ -68,12 +70,11 @@ $app->get('/version', function ($request, $response) {
 });
 
 // Main API endpoint
-$app->post('/ask', function ($request, $response) use ($queryService, $databaseService) {
+$app->post('/ask', function ($request, $response) use ($queryService, $databaseService, $chartService) {
     $startTime = microtime(true);
     try {
         $body  = (array)$request->getParsedBody();
         $query = trim((string)($body['q'] ?? ''));
-
 
         // Check for clear context request
         if (isset($body['clear_context']) && $body['clear_context']) {
@@ -98,6 +99,21 @@ $app->post('/ask', function ($request, $response) use ($queryService, $databaseS
         $queryResult = $queryService->processQuery($query);
         $dbResult    = $databaseService->executeQuery($queryResult['sql']);
 
+        // Analyze data for chart suggestions (only if reasonable dataset)
+        $chartSuggestions = null;
+        if ($dbResult['count'] > 0 && $dbResult['count'] <= 1000) {
+            try {
+                $chartSuggestions = $chartService->analyzeDataForCharts(
+                    $dbResult, 
+                    $queryResult['intent'], 
+                    $query
+                );
+            } catch (\Throwable $chartError) {
+                // Chart analysis failure shouldn't break the main query
+                error_log("Chart analysis failed: " . $chartError->getMessage());
+            }
+        }
+
         $llmIdent = $queryService->getLlmIdentity();
         $totalTime = microtime(true) - $startTime;
 
@@ -105,6 +121,7 @@ $app->post('/ask', function ($request, $response) use ($queryService, $databaseS
             'sql'   => $queryResult['sql'],
             'count' => $dbResult['count'],
             'rows'  => $dbResult['rows'],
+            'chart_suggestions' => $chartSuggestions,
             'timing' => [
                 'provider' => $llmIdent['provider'] ?? 'unknown',
                 'model_used' => $llmIdent['model'] ?? 'unknown',
@@ -139,6 +156,32 @@ $app->post('/ask', function ($request, $response) use ($queryService, $databaseS
             $errorData['raw_sql'] = $queryResult['raw_sql'];
         }
         $response->getBody()->write(json_encode($errorData));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+    }
+});
+$app->post('/chart-data', function ($request, $response) use ($chartService) {
+    try {
+        $body = (array)$request->getParsedBody();
+        $rows = $body['rows'] ?? [];
+        $chartConfig = $body['chart_config'] ?? [];
+
+        if (empty($rows) || empty($chartConfig)) {
+            throw new \InvalidArgumentException('Missing rows or chart_config');
+        }
+
+        $formattedData = $chartService->formatDataForECharts($rows, $chartConfig);
+
+        $response->getBody()->write(json_encode([
+            'success' => true,
+            'data' => $formattedData
+        ]));
+        return $response->withHeader('Content-Type', 'application/json');
+
+    } catch (\Throwable $e) {
+        $response->getBody()->write(json_encode([
+            'error' => 'Chart data formatting failed',
+            'detail' => $e->getMessage()
+        ]));
         return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
     }
 });

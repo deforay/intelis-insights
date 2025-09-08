@@ -112,11 +112,11 @@ return [
             'is_patient_breastfeeding' => 'Breastfeeding status. Values: "yes"/"no". Use IFNULL as older records may be NULL',
             'date_of_initiation_of_current_regimen' => 'Date patient started current ART regimen',
             'vl_sample_id' => 'Internal database ID - avoid in user queries',
-            'facility_id' => 'Links to facility_details table. The requesting facility/clinic',
-            'lab_id' => 'Links to facility_details table. The testing laboratory',
+            'facility_id' => 'Links to facility_details table. The requesting facility/clinic which collected the sample. Never show the facility_id directly, always join to facility_details and show facility_name or facility_code',
+            'lab_id' => 'Links to facility_details table. The testing laboratory where sample was processed/tested. Never show the lab_id directly, always join to facility_details and show facility_name or facility_code',
             'result_value_absolute' => 'Numeric VL count for comparisons (copies/mL). Use for threshold-based filtering',
             'result' => 'Text result (number or text like "Not Detected"). Rarely used for filtering unless specific text matching needed',
-            'vl_result_category' => 'Clinical categorization: "suppressed" or "not suppressed". Preferred for clinical queries',
+            'vl_result_category' => 'Clinical categorization: "suppressed" or "not suppressed". Preferred for clinical queries. Not to be used for joins.',
             'is_sample_rejected' => 'Sample rejection status. Values: "yes"/"no". Use IFNULL as older records may be NULL. IFNULL(is_sample_rejected, "no") = "yes"',
             'specimen_type' => 'Sample type (Plasma, DBS, Whole Blood). Links to r_vl_sample_type table',
             'reason_for_sample_rejection' => 'Rejection reason if applicable',
@@ -138,7 +138,7 @@ return [
             'request_created_datetime' => 'System request creation timestamp',
             'last_modified_by' => 'Last modifier user ID. Links to user_details table via user_id',
             'instrument_id' => 'Testing machine/analyzer/instrument identifier. Links to instrument_machines table or instruments table. Never return instrument_id, always make sure you return the instrument_machines.config_machine_name or instruments.machine_name',
-            'vl_test_platform' => 'Testing machine/analyzer/instrument name'
+            'vl_test_platform' => 'Testing machine/analyzer/instrument name. DO NOT USE THIS FOR JOINS. Always join on instrument_id to get the machine name. Only use this column as fallback to show name if instrument_id join not possible',
         ],
         
         'facility_details' => [

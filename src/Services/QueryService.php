@@ -41,6 +41,11 @@ class QueryService
         $this->contextService = $contextService ?? new ConversationContextService();
     }
 
+    public function getLlmClient(): AbstractLlmClient
+    {
+        return $this->llm;
+    }
+
     /** Extract allowed tables from schema (supports both old and new formats) */
     private function extractAllowedTables(array $schema): array
     {
