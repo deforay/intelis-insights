@@ -103,6 +103,7 @@ return [
     // Column semantics and descriptions
     'column_semantics' => [
         'form_vl' => [
+            'patient_art_no' => 'Patient ART number/identifier. Never select or return this column for privacy',
             'sample_code' => 'Human-readable sample identifier for display. Generated at lab in LIS. Possible duplicates across different testing labs',
             'remote_sample_code' => 'Sample ID from Sample Tracking System (STS). Usually different from sample_code. Indicates request origin',
             'implementing_partner' => 'NGO or partner supporting the facility. Links to r_implementation_partners table',

@@ -197,7 +197,7 @@ class QueryService
         $scopeLimits = $globalRules['query_scope_limits']['rules'] ?? [];
 
         $businessContext = "BUSINESS CONTEXT:\n";
-        $businessContext .= "Default Assumptions:\n";
+        $businessContext .= "Default Assumptions, DONT IGNORE THESE:\n";
         foreach ($defaultAssumptions as $assumption) {
             $businessContext .= "- $assumption\n";
         }
@@ -226,9 +226,8 @@ class QueryService
         $intentPrompt = <<<PROMPT
 You are analyzing a medical laboratory database query. Consider the business context and conversation history when determining intent.
 
-Pay Close Attention to extremely critical Business Context : $businessContext
-
-More Context to make your queries more accurate : $contextInfo
+$businessContext
+$contextInfo
 
 Analyze the query to determine type, intents, and domain relevance. If this query references previous conversation, indicate that in your response.
 
@@ -399,7 +398,7 @@ PROMPT;
         if (!empty($privacyRules)) {
             $context .= "Privacy Requirements:\n";
             $forbiddenCols = $privacyRules['forbidden_columns'] ?? [];
-            $context .= "- NEVER select: " . implode(', ', array_slice($forbiddenCols, 0, 8)) . "\n";
+            $context .= "- NEVER add these in select query: " . implode(', ', array_slice($forbiddenCols, 0, 8)) . "\n";
         }
 
         // Intent-specific rules
@@ -608,6 +607,11 @@ CRITICAL: Return ONLY the raw SQL statement with NO formatting, explanations, or
 {$context['conversation_context']}
 {$context['intent']}
 
+PRIVACY:
+- You may use identifiers like patient_art_no ONLY inside COUNT(DISTINCT ...) to count unique patients.
+- NEVER select, filter, group by, order by, or join on patient_art_no (or similar identifiers).
+- When you count unique patients, alias as "unique_patients" (or a context-appropriate human label).
+
 RULES:
 - Return a COMPLETE VALID MySQL SELECT query
 - Use exact column and table names from schema
@@ -642,16 +646,6 @@ TXT;
             throw new RuntimeException('Non-SELECT SQL returned by LLM');
         }
 
-        // Use business rules structure
-        $privacyRules = $this->businessRules['global_rules']['privacy'] ?? [];
-        $forbiddenColumns = $privacyRules['forbidden_columns'] ?? [];
-
-        foreach ($forbiddenColumns as $column) {
-            if (stripos($sql, $column) !== false) {
-                throw new RuntimeException("Privacy violation: {$column} cannot be returned");
-            }
-        }
-
         if (!preg_match('/\bFROM\s+([a-zA-Z0-9_]+)/i', $sql)) {
             throw new RuntimeException('Missing FROM clause in generated SQL : ' . $sql);
         }
@@ -665,6 +659,42 @@ TXT;
             }
         }
 
+        // ---------- PRIVACY CHECKS ----------
+        $privacyRules = $this->businessRules['global_rules']['privacy'] ?? [];
+        $forbiddenColumns = $privacyRules['forbidden_columns'] ?? [];
+        $allowAggDistinct = array_map('strtolower', $privacyRules['allow_aggregated_distinct'] ?? []);
+
+        // Remove string literals so we don't match column names inside quotes
+        $sqlNoStrings = $this->stripStringLiterals($sql);
+
+        // For columns allowed only inside COUNT(DISTINCT ...), remove those safe occurrences first
+        $sqlScrubbed = $sqlNoStrings;
+        foreach ($allowAggDistinct as $col) {
+            // Remove COUNT(DISTINCT ... col ...) with optional table/alias and backticks
+            $pattern = '/count\s*\(\s*distinct\s+[^)]*\b' . preg_quote($col, '/') . '\b[^)]*\)/i';
+            $sqlScrubbed = preg_replace($pattern, '/*__SAFE_AGG__*/', $sqlScrubbed);
+        }
+
+        // Now, if any forbidden column name still remains anywhere, it's a violation
+        foreach ($forbiddenColumns as $column) {
+            $col = strtolower($column);
+            if (stripos($sqlScrubbed, $col) !== false) {
+                throw new RuntimeException("Privacy violation: {$column} cannot be returned - $sql");
+            }
+        }
+        // ---------- END PRIVACY CHECKS ----------
+
+        return $sql;
+    }
+
+    /**
+     * Remove single- and double-quoted string literals to avoid false positives.
+     */
+    private function stripStringLiterals(string $sql): string
+    {
+        // remove '...'(escaped) and "..."(escaped)
+        $sql = preg_replace("/'(?:''|\\\\'|[^'])*'/", "''", $sql);
+        $sql = preg_replace('/"(?:\\"|[^"])*"/', '""', $sql);
         return $sql;
     }
 

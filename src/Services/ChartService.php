@@ -9,6 +9,7 @@ use App\Llm\AbstractLlmClient;
 class ChartService
 {
     private AbstractLlmClient $llm;
+    private int $maxSuggestions = 6;
 
     public function __construct(AbstractLlmClient $llm)
     {
@@ -147,75 +148,70 @@ class ChartService
 
 
     private function buildChartAnalysisPrompt(array $analysis, string $intent, string $query): string
-    {
-        $columnInfo = '';
-        foreach ($analysis['columns'] as $column => $info) {
-            $samples = implode(', ', array_map(fn($v) => (string)$v, array_slice($info['sample_values'], 0, 3)));
-            $columnInfo .= "- {$column}: type={$info['type']}, unique={$info['unique_count']}, samples=[{$samples}]\n";
-        }
-        $sampleDataJson = json_encode($analysis['sample_data'], JSON_PRETTY_PRINT);
+{
+    $columnInfo = '';
+    foreach ($analysis['columns'] as $column => $info) {
+        $sampleValues = implode(', ', array_slice($info['sample_values'], 0, 3));
+        $columnInfo .= "- {$column}: {$info['type']}, {$info['unique_count']} unique, samples: {$sampleValues}\n";
+    }
 
-        // JSON schema-like instruction makes outputs far more reliable
-        $schema = json_encode([
-            'type' => 'object',
-            'properties' => [
-                'suggestions' => [
-                    'type' => 'array',
-                    'maxItems' => 3,
-                    'items' => [
-                        'type' => 'object',
-                        'required' => ['type', 'title', 'x_axis', 'y_axis'],
-                        'properties' => [
-                            'type' => ['enum' => ['bar', 'pie', 'line', 'scatter']],
-                            'title' => ['type' => 'string'],
-                            'description' => ['type' => 'string'],
-                            'x_axis' => ['type' => 'string'],
-                            'y_axis' => ['type' => 'string'],
-                            'grouping' => ['type' => 'string'],
-                            'reasoning' => ['type' => 'string']
-                        ]
-                    ]
-                ]
-            ],
-            'required' => ['suggestions']
-        ], JSON_UNESCAPED_SLASHES);
+    $sampleDataJson = json_encode($analysis['sample_data'], JSON_PRETTY_PRINT);
 
-        return <<<PROMPT
-You are a medical data visualization expert. Produce chart suggestions ONLY as strict JSON (no prose), validating against this schema:
+    // Tight JSON spec the model must follow
+    return <<<PROMPT
+You are a medical data visualization expert. Analyze this DB result and propose chart configurations.
 
-SCHEMA:
-{$schema}
-
-CONTEXT
 QUERY: "{$query}"
 DETECTED INTENT: {$intent}
-ROWS: {$analysis['row_count']}
+ROW COUNT: {$analysis['row_count']}
 
-COLUMNS
+COLUMNS:
 {$columnInfo}
 
-SAMPLE DATA (first 3 rows)
+SAMPLE DATA (first 3 rows):
 {$sampleDataJson}
 
-RULES
-- Prefer grouped BAR when a facility/category + numeric + year/group column exist.
-- Prefer standard BAR when a single category + numeric column exist.
-- PIE only if categories are reasonably few (<= 12) and show share of total.
-- LINE only if the X-axis is temporal or year-like and sorted ascending.
-- Never propose scatter for pure counts with categorical X-axis.
-- Always return field names that exist in the table (from COLUMNS above).
-- Titles must be concise and human-friendly.
+Return ONLY valid JSON (no prose) with this shape:
+
+{
+  "suggestions": [
+    {
+      "type": "bar" | "line" | "pie" | "scatter",
+      "title": "Short human title",
+      "description": "One sentence on what this shows",
+      "x_axis": "column_name",        // for bar/line/scatter
+      "y_axis": "column_name",        // for bar/line/scatter
+      "grouping": "column_name",      // optional (e.g., "year") for grouped bars
+      // OPTIONAL quality knobs:
+      "aggregate": "sum" | "avg" | "count",
+      "normalize": "absolute" | "percent" | "rate_per_k",
+      "per_k": 1000,                  // used only if normalize == "rate_per_k"
+      "top_n": 20,                    // cap number of categories; fold rest into "Other"
+      "sort_by": "value_desc" | "value_asc" | "alpha",
+      "time_bin": "auto" | "year" | "quarter" | "month" // if x is temporal
+    }
+  ]
+}
+
+Rules of thumb:
+- Facilities + counts + years → Prefer grouped BAR: x=facility_name, y=total_tests, grouping=year.
+- PIE is acceptable to show share by facility.
+- Only use LINE if x is clearly temporal; otherwise avoid.
+- Never use SCATTER for simple counts by category.
 
 Return JSON only.
 PROMPT;
-    }
+}
+
 
 
     private function processLLMSuggestions(array $suggestions): array
     {
         $processedSuggestions = [];
+        $limit = (int)($_ENV['CHART_SUGGESTION_LIMIT'] ?? $this->maxSuggestions);
 
-        foreach (array_slice($suggestions, 0, 3) as $suggestion) {
+
+        foreach (array_slice($suggestions, 0, $limit) as $suggestion) {
             if (!isset($suggestion['type']) || !isset($suggestion['x_axis']) || !isset($suggestion['y_axis'])) {
                 continue;
             }
@@ -325,13 +321,29 @@ PROMPT;
     }
 
 
-    private function generateBarChartConfig(string $xColumn, string $yColumn, ?string $groupingColumn = null): array
+    private function generateBarChartConfig(string $xColumn, string $yColumn, ?string $groupingColumn = null, array $opts = []): array
     {
+        // knobs (all optional)
+        $aggregate = $opts['aggregate'] ?? 'sum';             // sum|avg|count
+        $normalize = $opts['normalize'] ?? 'absolute';        // absolute|percent|rate_per_k
+        $perK      = $opts['per_k'] ?? 1000;                  // used if rate_per_k
+        $topN      = $opts['top_n'] ?? 30;                    // cap categories
+        $sortBy    = $opts['sort_by'] ?? 'value_desc';        // value_desc|value_asc|alpha
+        $timeBin   = $opts['time_bin'] ?? null;               // auto|year|quarter|month (when X is temporal)
+
+        $yFormatter = ($normalize === 'percent') ? '{value}%' : null;
+
         return [
             'chart_type' => 'bar',
             'x_axis' => $xColumn,
             'y_axis' => $yColumn,
             'grouping_column' => $groupingColumn,
+            'aggregate' => $aggregate,
+            'normalize' => $normalize,
+            'per_k' => $perK,
+            'top_n' => $topN,
+            'sort_by' => $sortBy,
+            'time_bin' => $timeBin,
             'echarts_option' => [
                 'tooltip' => [
                     'trigger' => $groupingColumn ? 'axis' : 'item',
@@ -353,12 +365,13 @@ PROMPT;
                 'yAxis' => [
                     'type' => 'value',
                     'name' => ucfirst(str_replace('_', ' ', $yColumn)),
-                    'axisLabel' => ['fontSize' => 11]
+                    'axisLabel' => ['fontSize' => 11] + ($yFormatter ? ['formatter' => $yFormatter] : [])
                 ],
-                'series' => [] // filled at runtime
+                'series' => []
             ]
         ];
     }
+
 
 
     private function generatePieChartConfig(string $labelColumn, string $valueColumn): array
@@ -473,104 +486,179 @@ PROMPT;
         $y = $config['y_axis'];
         $g = $config['grouping_column'] ?? null;
 
-        // Normalize keys case-insensitively
-        $norm = function (array $row, string $key) {
-            foreach ($row as $k => $v) {
-                if (strcasecmp($k, $key) === 0) return $v;
-            }
+        $aggregate = $config['aggregate'] ?? 'sum';           // sum|avg|count
+        $normalize = $config['normalize'] ?? 'absolute';      // absolute|percent|rate_per_k
+        $perK      = $config['per_k'] ?? 1000;
+        $topN      = max(1, (int)($config['top_n'] ?? 30));
+        $sortBy    = $config['sort_by'] ?? 'value_desc';      // value_desc|value_asc|alpha
+        $timeBin   = $config['time_bin'] ?? null;             // auto|year|quarter|month
+
+        // ---- helpers ----
+        $resolve = function (array $row, string $key) {
+            foreach ($row as $k => $v) if (strcasecmp($k, $key) === 0) return $v;
             return $row[$key] ?? null;
         };
+        $canon = fn($s) => trim(preg_replace('/\s+/', ' ', (string)$s));
+        $isYear = fn($v) => (is_numeric($v) && (int)$v >= 1900 && (int)$v <= 2100);
+        $parseTemporal = function ($v) {
+            $s = (string)$v;
+            // yyyy-mm(-dd) or common forms
+            if (preg_match('/^\d{4}-(\d{2})(-\d{2})?/', $s)) return strtotime(substr($s, 0, 10));
+            if (preg_match('/^\d{4}\/\d{2}\/\d{2}$/', $s))   return strtotime($s);
+            if (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $s))   return strtotime($s);
+            if (preg_match('/^\d{4}$/', $s))                 return strtotime($s . '-01-01');
+            return false;
+        };
 
-        // Aggregate duplicates (sum values for same category/group)
-        $agg = [];
+        // Decide if X is temporal, and bin if required
+        $xLooksTemporal = false;
+        foreach (array_slice($rows, 0, 20) as $r) {
+            $v = $resolve($r, $x);
+            if ($v !== null && ($isYear($v) || $parseTemporal($v) !== false)) {
+                $xLooksTemporal = true;
+                break;
+            }
+        }
+        $xTemporalMode = $xLooksTemporal ? ($timeBin ?: 'auto') : null;
+
+        // ---- aggregate matrix ----
+        // Structure: [group][category] => {sum,count}
+        $matrix = [];
+        $allCats = [];
+        $allGroups = [];
+
+        foreach ($rows as $r) {
+            $rawX = $resolve($r, $x);
+            $rawG = $g ? $resolve($r, $g) : null;
+            $rawY = $resolve($r, $y);
+
+            // category label canonicalization
+            $cat = $canon($rawX);
+
+            // time binning
+            if ($xTemporalMode) {
+                if ($isYear($rawX)) {
+                    $cat = (string)(int)$rawX; // year
+                } else {
+                    $ts = $parseTemporal($rawX);
+                    if ($ts !== false) {
+                        if ($xTemporalMode === 'year' || $xTemporalMode === 'auto') {
+                            $cat = date('Y', $ts);
+                        } elseif ($xTemporalMode === 'quarter') {
+                            $cat = date('Y', $ts) . ' Q' . ceil((int)date('n', $ts) / 3);
+                        } else { // month
+                            $cat = date('Y-m', $ts);
+                        }
+                    }
+                }
+            }
+
+            $grp = $g ? $canon($rawG) : '_single';
+            $val = ($aggregate === 'count') ? 1.0 : (float)$rawY;
+
+            if (!isset($matrix[$grp])) $matrix[$grp] = [];
+            if (!isset($matrix[$grp][$cat])) $matrix[$grp][$cat] = ['sum' => 0.0, 'count' => 0];
+            $matrix[$grp][$cat]['sum'] += $val;
+            $matrix[$grp][$cat]['count']++;
+
+            $allCats[$cat] = true;
+            $allGroups[$grp] = true;
+        }
+
+        // compute aggregated value per cell
+        $valueOf = function (array $cell) use ($aggregate) {
+            return $aggregate === 'avg'
+                ? ($cell['count'] ? $cell['sum'] / $cell['count'] : 0.0)
+                : $cell['sum']; // sum or count were already encoded
+        };
+
+        // overall totals per category (used for sorting/topN)
+        $catTotals = array_fill_keys(array_keys($allCats), 0.0);
+        foreach ($matrix as $grp => $pairs) {
+            foreach ($pairs as $cat => $cell) $catTotals[$cat] += $valueOf($cell);
+        }
+
+        // sort categories
+        $categories = array_keys($catTotals);
+        if ($xTemporalMode) {
+            // natural temporal sort (year, year-month, year Qx)
+            usort($categories, function ($a, $b) {
+                // try timestamps
+                $ta = strtotime(preg_replace('/\sQ\d$/', '-01', preg_replace('/^(\d{4})$/', '$1-01-01', $a)));
+                $tb = strtotime(preg_replace('/\sQ\d$/', '-01', preg_replace('/^(\d{4})$/', '$1-01-01', $b)));
+                return $ta <=> $tb;
+            });
+        } else {
+            if ($sortBy === 'alpha') sort($categories, SORT_NATURAL | SORT_FLAG_CASE);
+            elseif ($sortBy === 'value_asc') asort($catTotals, SORT_NUMERIC);
+            else arsort($catTotals, SORT_NUMERIC);
+            if ($sortBy !== 'alpha') $categories = array_keys($catTotals);
+        }
+
+        // Top-N + "Other"
+        $otherLabel = 'Other';
+        if (count($categories) > $topN) {
+            $top = array_slice($categories, 0, $topN);
+            $categories = array_merge($top, [$otherLabel]);
+
+            foreach ($matrix as $grp => $pairs) {
+                $folded = array_fill_keys($categories, ['sum' => 0.0, 'count' => 0]);
+                foreach ($pairs as $cat => $cell) {
+                    $bucket = in_array($cat, $top, true) ? $cat : $otherLabel;
+                    $folded[$bucket]['sum']   += $cell['sum'];
+                    $folded[$bucket]['count'] += $cell['count'];
+                }
+                $matrix[$grp] = $folded;
+            }
+        } else {
+            // ensure every category exists per group
+            foreach ($matrix as $grp => $pairs) {
+                foreach ($categories as $cat) {
+                    if (!isset($matrix[$grp][$cat])) $matrix[$grp][$cat] = ['sum' => 0.0, 'count' => 0];
+                }
+            }
+        }
+
+        // normalization (percent or rate per K)
+        if ($normalize === 'percent') {
+            foreach ($matrix as $grp => $pairs) {
+                $total = 0.0;
+                foreach ($categories as $cat) $total += $valueOf($pairs[$cat]);
+                $total = $total ?: 1.0;
+                foreach ($categories as $cat) {
+                    $val = $valueOf($pairs[$cat]) / $total * 100.0;
+                    $matrix[$grp][$cat] = ['sum' => $val, 'count' => 1];
+                }
+            }
+        } elseif ($normalize === 'rate_per_k') {
+            $k = max(1, (int)$perK);
+            foreach ($matrix as $grp => $pairs) {
+                foreach ($categories as $cat) {
+                    $val = $valueOf($pairs[$cat]) * (1000.0 / $k); // scale to per-k
+                    $matrix[$grp][$cat] = ['sum' => $val, 'count' => 1];
+                }
+            }
+        }
+
+        // build ECharts structures
+        $groups = array_keys($allGroups);
         if ($g) {
-            foreach ($rows as $r) {
-                $cat = (string)$norm($r, $x);
-                $grp = (string)$norm($r, $g);
-                $val = (float)$norm($r, $y);
-                if (!isset($agg[$grp])) $agg[$grp] = [];
-                if (!isset($agg[$grp][$cat])) $agg[$grp][$cat] = 0.0;
-                $agg[$grp][$cat] += $val;
-            }
-
-            // unify category list
-            $allCats = [];
-            foreach ($agg as $grp => $pairs) {
-                foreach ($pairs as $cat => $_) $allCats[$cat] = true;
-            }
-            $categories = array_keys($allCats);
-
-            // sort categories by total descending
-            $totals = array_fill_keys($categories, 0.0);
-            foreach ($agg as $grp => $pairs) {
-                foreach ($pairs as $cat => $val) $totals[$cat] += $val;
-            }
-            arsort($totals);
-            $categories = array_keys($totals);
-
-            // cap categories (top 30 -> rest to "Other")
-            $cap = 30;
-            if (count($categories) > $cap) {
-                $top = array_slice($categories, 0, $cap);
-                $other = 'Other';
-                $categories = array_merge($top, [$other]);
-
-                // fold others
-                foreach ($agg as $grp => $pairs) {
-                    $folded = array_fill_keys($categories, 0.0);
-                    foreach ($pairs as $cat => $val) {
-                        $folded[in_array($cat, $top, true) ? $cat : $other] += $val;
-                    }
-                    $agg[$grp] = $folded;
-                }
-            } else {
-                // ensure every category exists per group
-                foreach ($agg as $grp => $pairs) {
-                    foreach ($categories as $cat) {
-                        if (!isset($agg[$grp][$cat])) $agg[$grp][$cat] = 0.0;
-                    }
-                }
-            }
-
-            // build series
             $series = [];
-            foreach ($agg as $grp => $pairs) {
+            foreach ($groups as $grp) {
                 $series[] = [
-                    'name' => (string)$grp,
+                    'name' => $grp,
                     'type' => $config['chart_type'],
-                    'data' => array_map(fn($c) => (float)$agg[$grp][$c], $categories),
+                    'data' => array_map(fn($c) => $valueOf($matrix[$grp][$c]), $categories)
                 ];
             }
-
             return ['categories' => $categories, 'series' => $series];
         }
 
-        // Single series
-        $bucket = [];
-        foreach ($rows as $r) {
-            $cat = (string)$norm($r, $x);
-            $val = (float)$norm($r, $y);
-            if (!isset($bucket[$cat])) $bucket[$cat] = 0.0;
-            $bucket[$cat] += $val;
-        }
-
-        // sort desc by value
-        arsort($bucket);
-
-        // cap to top 30 + Other
-        $cap = 30;
-        if (count($bucket) > $cap) {
-            $top = array_slice($bucket, 0, $cap, true);
-            $other = array_sum(array_slice($bucket, $cap, null, true));
-            $top['Other'] = $other;
-            $bucket = $top;
-        }
-
-        return [
-            'categories' => array_keys($bucket),
-            'values' => array_values($bucket),
-        ];
+        // single series
+        $data = array_map(fn($c) => $valueOf($matrix['_single'][$c]), $categories);
+        return ['categories' => $categories, 'values' => $data];
     }
+
 
 
     private function formatPieData(array $rows, array $config): array

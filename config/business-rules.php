@@ -11,8 +11,10 @@ return [
             'description' => 'Absolute privacy protection - never return patient identifying information',
             'forbidden_columns' => [
                 'patient_first_name',
-                'patient_last_name', 
+                'patient_last_name',
                 'patient_id',
+                'facility_id',
+                'lab_id',
                 'patient_art_no',
                 'child_id',
                 'child_name',
@@ -24,6 +26,16 @@ return [
                 'facility_email',
                 'contact_person_email',
                 'contact_person_phone'
+            ],
+            // ✅ allow these ONLY inside COUNT(DISTINCT ...)
+            'allow_aggregated_distinct' => [
+                'patient_art_no',
+                'system_patient_code',
+                'patient_id',
+                'child_id',
+                'mother_id',
+                'facility_id',
+                'lab_id',
             ],
             'forbidden_patterns' => [
                 '/\bpatient_first_name\b/i',
@@ -41,11 +53,12 @@ return [
             ],
             'privacy_message' => 'Patient names, IDs, and contact information are not returned for privacy and data security'
         ],
-        
+
         'default_assumptions' => [
-            'description' => 'Default assumptions when query is ambiguous',
+            'description' => 'Default intructions and assumptions always applied',
             'rules' => [
                 "Almost always the queries will use the sample test tables - form_vl, form_eid, form_tb, form_xyz where xyz is other test types",
+                "ALWAYS refer to schema, field guide and business rules for column names, meanings and relationships",
                 'Never use the word gender or patient_gender for column aliases or data that is returned to user; always use the word "sex" where needed. When dealing with gender, always alias it to "sex"',
                 "If the query is not related to specific medical/laboratory data, reject it",
                 "Don't display database field names directly to users. Always alias them.",
@@ -59,7 +72,7 @@ return [
                 "NEVER HALLUCINATE. This is medical data. If unsure, return not applicable, ask for clarification or state that you don't know"
             ]
         ],
-        
+
         'query_scope_limits' => [
             'description' => 'Limits on query scope and complexity',
             'rules' => [
@@ -71,7 +84,7 @@ return [
                 'Never use the word gender or patient_gender for column aliases; always use sex where needed. When dealing with gender, always alias it to sex'
             ]
         ],
-        
+
         'data_security' => [
             'description' => 'Additional data security measures',
             'rules' => [
@@ -101,9 +114,9 @@ return [
                 'Focus on completed/finalized records unless specified otherwise'
             ]
         ],
-        
+
         'list' => [
-            'description' => 'Rules for listing/display queries', 
+            'description' => 'Rules for listing/display queries',
             'rules' => [
                 'Always include LIMIT unless user specifies otherwise (default 100)',
                 'Include essential identification fields like sample_code',
@@ -115,7 +128,7 @@ return [
             'essential_columns' => ['sample_code', 'sample_tested_datetime', 'result'],
             'default_order' => 'newest_first'
         ],
-        
+
         'aggregate' => [
             'description' => 'Rules for statistical/aggregate queries',
             'rules' => [
@@ -126,7 +139,7 @@ return [
                 'Round percentages to reasonable precision (1-2 decimal places)'
             ]
         ],
-        
+
         'multi_part' => [
             'description' => 'Rules for complex multi-part queries',
             'rules' => [
@@ -147,7 +160,7 @@ return [
             '/\b(show\s+tables|describe|information_schema)\b/i',
             '/\b(grant|revoke|user|password)\b/i'
         ],
-        
+
         'reject_intents' => [
             'administrative database operations',
             'system information or metadata requests',
@@ -155,7 +168,7 @@ return [
             'queries completely unrelated to laboratory/medical domain',
             'requests for raw data dumps without clear business purpose'
         ],
-        
+
         'scope_limits' => [
             'max_tables_per_query' => 3,
             'max_result_limit' => 10000,
@@ -175,7 +188,7 @@ return [
                 'Include units in aliases when relevant (e.g., vl_count_copies_ml)'
             ]
         ],
-        
+
         'data_presentation' => [
             'description' => 'How to present data to users',
             'rules' => [
@@ -199,7 +212,7 @@ return [
                 'Always clarify which date field is being used in complex queries'
             ]
         ],
-        
+
         'geographic' => [
             'description' => 'Location-based business rules',
             'rules' => [
@@ -208,7 +221,7 @@ return [
                 'Respect data privacy when dealing with small geographic areas'
             ]
         ],
-        
+
         'clinical' => [
             'description' => 'Clinical interpretation rules',
             'rules' => [
