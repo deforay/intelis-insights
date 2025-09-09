@@ -630,6 +630,105 @@ $providerNames = array_keys($providers);
                 padding: 0.5rem;
             }
         }
+
+        .chart-panel {
+            background: #f8fafc;
+            /* subtle */
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 14px 16px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
+            margin-top: 10px;
+        }
+
+        .chart-panel__header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .chart-panel__title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #111827;
+            margin: 0;
+        }
+
+        .chart-panel__close {
+            margin-left: auto;
+            border: 0;
+            background: transparent;
+            padding: 6px 8px;
+            line-height: 1;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #6b7280;
+        }
+
+        .chart-panel__close:hover,
+        .chart-panel__close:focus {
+            background: #eef2ff;
+            color: #374151;
+            outline: none;
+        }
+
+        .chart-options-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 10px;
+        }
+
+        .chart-card {
+            display: flex;
+            flex-direction: column;
+            text-align: left;
+            gap: 4px;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            background: #fff;
+            padding: 12px 14px;
+            cursor: pointer;
+            transition: box-shadow .15s ease, transform .04s ease;
+        }
+
+        .chart-card:hover {
+            box-shadow: 0 2px 10px rgba(0, 0, 0, .06);
+            transform: translateY(-1px);
+        }
+
+        .chart-card:focus {
+            outline: 2px solid #6366f1;
+            outline-offset: 2px;
+        }
+
+        .chart-card__title {
+            font-weight: 700;
+            color: #111827;
+            font-size: 14px;
+            margin: 0;
+        }
+
+        .chart-card__desc {
+            color: #6b7280;
+            font-size: 12px;
+            margin: 0;
+        }
+
+        .chart-card[aria-pressed="true"] {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, .18);
+        }
+
+        /* small icon label style for the Generate charts */
+        .link-icon {
+            text-decoration: none;
+        }
+
+        .link-icon i {
+            font-style: normal;
+            margin-right: 4px;
+        }
     </style>
 
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
@@ -641,7 +740,7 @@ $providerNames = array_keys($providers);
             <div class="d-flex align-items-center gap-3">
                 <div>
                     <h5 class="mb-0">InteLIS Insights</h5>
-                    <small>Note: The LLM does not access your data at all.</small>
+
                 </div>
                 <div class="status-badges">
                     <span id="active-provider" class="status-badge">—</span>
@@ -649,6 +748,7 @@ $providerNames = array_keys($providers);
                 </div>
             </div>
             <div class="d-flex align-items-center gap-2">
+
                 <button class="btn btn-modern" id="toggle-settings">
                     <i class="bi bi-gear"></i> Settings
                 </button>
@@ -727,11 +827,11 @@ $providerNames = array_keys($providers);
                     </button>
                 </div>
             </div>
+            <small style="color:#888;font-size:0.7em;float:right;">Note: The LLM does not access your database directly. Personally Identifiable Information (PII) is strictly prohibited.</small>
         </div>
-
     </div>
 
-    <script src="/js/charts.js"></script>
+    <script src="/js/charts.js?v=<?= filemtime(__DIR__ . '/../../public/js/charts.js'); ?>"></script>
     <script id="llm-config" type="application/json">
         <?= json_encode($clientCfg, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>
     </script>
@@ -793,13 +893,13 @@ $providerNames = array_keys($providers);
         }
 
         function loadChatHistory() {
-    const history = localStorage.getItem('chatHistory');
-    if (history) {
-        chatBody.innerHTML = history;
-        // Use setTimeout to ensure DOM is updated before scrolling
-        setTimeout(() => scrollToBottom(), 100);
-    }
-}
+            const history = localStorage.getItem('chatHistory');
+            if (history) {
+                chatBody.innerHTML = history;
+                // Use setTimeout to ensure DOM is updated before scrolling
+                setTimeout(() => scrollToBottom(), 100);
+            }
+        }
 
         function scrollToBottom(smooth = false) {
             if (smooth) {
@@ -963,12 +1063,31 @@ $providerNames = array_keys($providers);
 
                 const messageDiv = addMessage('ai', responseHtml);
 
-                // Add chart button if chart suggestions are available
-                if (data.chart_suggestions && data.chart_suggestions.suitable_for_charts) {
+                // Persist chart meta + render the button now
+                if (data.chart_suggestions?.suitable_for_charts) {
+                    const meta = document.createElement('script');
+                    meta.type = 'application/json';
+                    meta.className = 'chart-meta';
+                    meta.textContent = JSON.stringify({
+                        rows: data.rows || [],
+                        chart_suggestions: data.chart_suggestions
+                    });
+                    messageDiv.appendChild(meta);
+
                     if (typeof chartGenerator !== 'undefined') {
-                        chartGenerator.addChartButton(data, messageDiv);
+                        chartGenerator.addChartButton({
+                                rows: data.rows || [],
+                                chart_suggestions: data.chart_suggestions
+                            },
+                            messageDiv
+                        );
                     }
+
+                    // IMPORTANT: history must be saved again after DOM was mutated
+                    localStorage.setItem('chatHistory', chatBody.innerHTML);
                 }
+
+
 
             } catch (error) {
                 if (chatBody.contains(loadingMessage)) chatBody.removeChild(loadingMessage);
@@ -983,6 +1102,24 @@ $providerNames = array_keys($providers);
                 userInput.focus();
             }
         }
+
+        function rehydrateChartButtons() {
+            const metas = chatBody.querySelectorAll('.ai-message .chart-meta');
+            metas.forEach(meta => {
+                try {
+                    const payload = JSON.parse(meta.textContent || '{}');
+                    const container = meta.closest('.ai-message');
+                    if (!payload?.chart_suggestions?.suitable_for_charts || !container || typeof chartGenerator === 'undefined') return;
+
+                    // ❗ skip if already present from saved HTML
+                    if (container.querySelector('.generate-chart-btn')) return;
+
+                    chartGenerator.addChartButton(payload, container);
+                } catch {}
+            });
+        }
+
+
 
 
         userInput.addEventListener('keydown', (e) => {
@@ -1006,6 +1143,28 @@ $providerNames = array_keys($providers);
             localStorage.removeItem('chatHistory');
             chatBody.innerHTML = '<div class="ai-message"><div class="message-content">Hello! Ask me a question about InteLIS.</div></div>';
         });
+
+        // Delegated click: works for fresh + restored buttons
+        chatBody.addEventListener('click', (e) => {
+            const btn = e.target.closest('.generate-chart-btn');
+            if (!btn) return;
+
+            const container = btn.closest('.ai-message');
+            if (!container) return;
+
+            const metaEl = container.querySelector('.chart-meta');
+            if (!metaEl) return;
+
+            let payload = null;
+            try {
+                payload = JSON.parse(metaEl.textContent || '{}');
+            } catch {}
+
+            if (payload?.chart_suggestions?.suitable_for_charts) {
+                window.chartGenerator.showChartOptions(payload, container);
+            }
+        });
+
 
         resetContextBtn.addEventListener('click', async () => {
             try {
@@ -1049,6 +1208,7 @@ $providerNames = array_keys($providers);
         document.addEventListener('DOMContentLoaded', () => {
             loadChatHistory();
             loadSettings();
+            rehydrateChartButtons();
             userInput.focus();
         });
     </script>

@@ -1,13 +1,10 @@
-// Add this to your chat.php view or create a separate charts.js file
-
 class MedicalChartGenerator {
     constructor() {
-        this.charts = new Map(); // Store chart instances
+        this.charts = new Map(); // Map<HTMLElement, EChartsInstance>
         this.initializeECharts();
     }
 
     initializeECharts() {
-        // Add ECharts CDN to your HTML head if not already present
         if (typeof echarts === 'undefined') {
             const script = document.createElement('script');
             script.src = 'https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js';
@@ -16,91 +13,111 @@ class MedicalChartGenerator {
         }
     }
 
-    // Call this after your existing table rendering
     addChartButton(responseData, tableContainer) {
-        // Only add button if charts are suggested
-        if (!responseData.chart_suggestions || !responseData.chart_suggestions.suitable_for_charts) {
-            return;
-        }
+        if (!responseData.chart_suggestions || !responseData.chart_suggestions.suitable_for_charts) return;
 
-        const chartButton = document.createElement('button');
-        chartButton.className = 'btn btn-primary mt-2';
-        chartButton.innerHTML = '📊 Generate Chart';
-        chartButton.onclick = () => this.showChartOptions(responseData);
+        // Skip if already present
+        if (tableContainer.querySelector('.generate-chart-btn')) return;
 
-        tableContainer.appendChild(chartButton);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-link btn-sm p-0 ms-2 link-icon generate-chart-btn';
+        btn.innerHTML = '<i>📊</i> Generate Chart';
+        btn.onclick = (e) => this.showChartOptions(responseData, e.currentTarget.closest('.ai-message'));
+
+        const timingInfo = tableContainer.querySelector('.timing-info');
+        if (timingInfo) timingInfo.appendChild(btn);
+        else tableContainer.insertBefore(btn, tableContainer.firstChild);
     }
 
-    showChartOptions(responseData) {
-        const suggestions = responseData.chart_suggestions.suggestions;
-
-        if (suggestions.length === 0) {
+    showChartOptions(responseData, hostMessageEl) {
+        const suggestions = responseData.chart_suggestions?.suggestions || [];
+        if (!suggestions.length) {
             alert('No suitable chart types found for this data.');
             return;
         }
 
-        // Create modal or inline options
-        const optionsDiv = document.createElement('div');
-        optionsDiv.className = 'chart-options mt-3 p-3 border rounded';
-        optionsDiv.innerHTML = '<h5>Choose Chart Type:</h5>';
+        const container = hostMessageEl || document.querySelector('.ai-message:last-child') || document.body;
 
-        suggestions.forEach((suggestion, index) => {
-            const optionButton = document.createElement('button');
-            optionButton.className = 'btn btn-outline-secondary me-2 mb-2';
-            optionButton.innerHTML = `
-                <strong>${suggestion.title}</strong><br>
-                <small>${suggestion.description}</small>
-            `;
-            optionButton.onclick = () => this.generateChart(responseData, suggestion, index);
-            optionsDiv.appendChild(optionButton);
-        });
-
-        // Find where to insert options (after the table) 
-        const tableContainer = document.querySelector('.ai-message:last-child');
-
-        // Remove existing options
-        const existing = tableContainer.querySelector('.chart-options');
+        // Remove existing panel before adding a new one
+        const existing = container.querySelector('.chart-panel');
         if (existing) existing.remove();
 
-        tableContainer.appendChild(optionsDiv);
+        const panel = document.createElement('div');
+        panel.className = 'chart-panel';
+
+        // Header
+        const header = document.createElement('div');
+        header.className = 'chart-panel__header';
+
+        const h = document.createElement('h5');
+        h.className = 'chart-panel__title';
+        h.textContent = 'Choose Chart Type';
+
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'chart-panel__close';
+        closeBtn.type = 'button';
+        closeBtn.setAttribute('aria-label', 'Close chart options');
+        closeBtn.textContent = '×';
+        closeBtn.onclick = () => panel.remove();
+
+        header.appendChild(h);
+        header.appendChild(closeBtn);
+
+        // Grid
+        const grid = document.createElement('div');
+        grid.className = 'chart-options-grid';
+
+        suggestions.forEach((sugg, i) => {
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'chart-card';
+            card.setAttribute('aria-pressed', 'false');
+            card.innerHTML = `
+                <div class="chart-card__title">${sugg.title}</div>
+                <div class="chart-card__desc">${sugg.description || ''}</div>
+            `;
+
+            card.onclick = () => {
+                // Reset all
+                grid.querySelectorAll('.chart-card').forEach(el => el.setAttribute('aria-pressed', 'false'));
+                card.setAttribute('aria-pressed', 'true');
+
+                // Generate (reuse container)
+                this.generateChart(responseData, sugg, container); // ✅ pass the host message element
+
+            };
+
+            grid.appendChild(card);
+        });
+
+        panel.appendChild(header);
+        panel.appendChild(grid);
+        container.appendChild(panel);
     }
 
-    async generateChart(responseData, suggestion, chartIndex) {
-        try {
-            // Show loading state
-            this.showChartLoading();
+    async generateChart(responseData, suggestion, hostMessageEl) {
+        this.showChartLoading();
 
-            // Call your PHP endpoint to get formatted chart data
-            const chartData = await this.fetchChartData(responseData.rows, suggestion.config);
+        const chartData = await this.fetchChartData(responseData.rows, suggestion.config);
+        const chartContainer = this.createChartContainer(hostMessageEl);
 
-            // Create chart container
-            const chartContainer = this.createChartContainer(chartIndex);
-
-            // Initialize ECharts
-            const chart = echarts.init(chartContainer);
-
-            // Build complete ECharts option
-            const option = this.buildEChartsOption(suggestion.config, chartData);
-
-            // Render chart
-            chart.setOption(option);
-
-            // Store chart instance for cleanup
-            this.charts.set(`chart_${chartIndex}`, chart);
-
-            // Handle window resize
+        let chart = this.charts.get(chartContainer);
+        if (!chart) {
+            chart = echarts.init(chartContainer);
+            this.charts.set(chartContainer, chart);
             window.addEventListener('resize', () => chart.resize());
-
-            this.hideChartLoading();
-
-        } catch (error) {
-            console.error('Chart generation failed:', error);
-            this.showChartError(error.message);
         }
+
+        const option = this.buildEChartsOption(suggestion.config, chartData);
+        chart.clear();
+        chart.setOption(option, { notMerge: true, replaceMerge: ['series', 'xAxis', 'yAxis', 'legend', 'grid', 'dataset'] });
+        chart.resize();
+
+        this.hideChartLoading();
     }
 
     async fetchChartData(rows, chartConfig) {
-        // Format data client-side to avoid additional server call
         return this.formatDataForECharts(rows, chartConfig);
     }
 
@@ -121,9 +138,7 @@ class MedicalChartGenerator {
         const yColumn = config.y_axis;
         const groupingColumn = config.grouping_column;
 
-        // Handle "none" grouping or missing columns
         if (!groupingColumn || groupingColumn === "none" || !rows[0] || !rows[0][groupingColumn]) {
-            // Simple single series - match actual column names
             const actualXColumn = this.findActualColumnName(rows[0], xColumn);
             const actualYColumn = this.findActualColumnName(rows[0], yColumn);
 
@@ -132,27 +147,19 @@ class MedicalChartGenerator {
             return { categories, values };
         }
 
-        // Grouped data logic (for when there's actual grouping)
         const facilityData = {};
         const years = new Set();
 
         rows.forEach(row => {
             const facility = row[xColumn];
             const yearValue = row[groupingColumn];
-
-            if (yearValue === undefined || yearValue === null) {
-                console.error('Grouping column value is undefined:', groupingColumn, row);
-                return;
-            }
+            if (yearValue === undefined || yearValue === null) return;
 
             const year = yearValue.toString();
             const value = parseFloat(row[yColumn]) || 0;
 
             years.add(year);
-
-            if (!facilityData[facility]) {
-                facilityData[facility] = {};
-            }
+            if (!facilityData[facility]) facilityData[facility] = {};
             facilityData[facility][year] = (facilityData[facility][year] || 0) + value;
         });
 
@@ -168,13 +175,9 @@ class MedicalChartGenerator {
         return { categories: facilities, series: series };
     }
 
-    // Helper method to find actual column names
     findActualColumnName(row, configColumnName) {
-        if (row[configColumnName]) {
-            return configColumnName;
-        }
+        if (row[configColumnName]) return configColumnName;
 
-        // Map common mismatches
         const columnMappings = {
             'facility_name': ['Collection Site', 'facility_name', 'Facility Name'],
             'total_tests': ['Total Tests', 'total_tests', 'Total_Tests'],
@@ -182,14 +185,9 @@ class MedicalChartGenerator {
         };
 
         const possibleNames = columnMappings[configColumnName] || [configColumnName];
-
         for (const name of possibleNames) {
-            if (row[name] !== undefined) {
-                return name;
-            }
+            if (row[name] !== undefined) return name;
         }
-
-        // Fallback to first available column if no match
         return Object.keys(row)[0];
     }
 
@@ -197,182 +195,139 @@ class MedicalChartGenerator {
         const labelColumn = config.label_column;
         const valueColumn = config.value_column;
 
-        const data = rows.map(row => ({
-            name: row[labelColumn],
-            value: parseFloat(row[valueColumn]) || 0
-        }));
-
-        return { data };
-    }
-
-    buildEChartsOption(config, chartData) {
-        const baseOption = JSON.parse(JSON.stringify(config.echarts_option));
-
-        switch (config.chart_type) {
-            case 'bar':
-            case 'line':
-                if (chartData.series) {
-                    baseOption.xAxis.data = chartData.categories;
-                    baseOption.series = chartData.series;
-                    if (!baseOption.legend) baseOption.legend = {};
-                    baseOption.legend.show = true;
-                } else {
-                    baseOption.xAxis.data = chartData.categories;
-                    baseOption.series = [{
-                        type: config.chart_type,
-                        name: config.y_axis.replace('_', ' '),
-                        data: chartData.values,
-                        itemStyle: { color: '#5470c6' }
-                    }];
-                }
-                break;
-
-            case 'pie':
-                if (baseOption.series && baseOption.series[0]) {
-                    baseOption.series[0].data = chartData.data;
-                }
-                break;
-        }
-
         return {
-            ...baseOption,
-            backgroundColor: '#ffffff',
-            grid: {
-                left: '10%',
-                right: '10%',
-                bottom: '20%',
-                top: '15%',
-                containLabel: true
-            },
-            textStyle: {
-                fontFamily: 'Arial, sans-serif',
-                fontSize: 12
-            },
-            // Better responsive behavior
-            xAxis: {
-                ...baseOption.xAxis,
-                axisLabel: {
-                    ...baseOption.xAxis.axisLabel,
-                    fontSize: 11,
-                    interval: 0,
-                    rotate: 45,
-                    textStyle: {
-                        fontSize: 11
-                    }
-                }
-            },
-            yAxis: {
-                ...baseOption.yAxis,
-                axisLabel: {
-                    fontSize: 11
-                }
-            }
+            data: rows.map(row => ({
+                name: row[labelColumn],
+                value: parseFloat(row[valueColumn]) || 0
+            }))
         };
     }
 
-    createChartContainer(chartIndex) {
-        // Remove existing chart options
-        const existingOptions = document.querySelector('.chart-options');
-        if (existingOptions) existingOptions.remove();
+    buildEChartsOption(config, chartData) {
+        const baseOption = JSON.parse(JSON.stringify(config.echarts_option || {}));
+        const chartType = config.chart_type;
 
-        // Create chart container with better sizing
-        const chartDiv = document.createElement('div');
-        chartDiv.id = `chart_${chartIndex}`;
-        chartDiv.className = 'medical-chart border rounded p-2';
-        chartDiv.style.cssText = `
-        width: 100%;
-        height: 500px;
-        margin-top: 20px;
-        min-height: 400px;
-        position: relative;
+        const normalizeAxis = (ax) => {
+            if (Array.isArray(ax)) return ax.length ? ax : [{}];
+            if (ax && typeof ax === 'object') return [ax];
+            return [{}];
+        };
+
+        if (chartType === 'bar' || chartType === 'line') {
+            const xAxes = normalizeAxis(baseOption.xAxis);
+            const yAxes = normalizeAxis(baseOption.yAxis);
+
+            if (chartData.series) {
+                xAxes[0].data = chartData.categories || [];
+                baseOption.series = chartData.series;
+                baseOption.legend = { ...(baseOption.legend || {}), show: true };
+            } else {
+                xAxes[0].data = chartData.categories || [];
+                baseOption.series = [{
+                    type: chartType,
+                    name: (config.y_axis || 'value').replace('_', ' '),
+                    data: chartData.values || []
+                }];
+            }
+
+            xAxes[0].axisLabel = { ...(xAxes[0].axisLabel || {}), fontSize: 11, interval: 0, rotate: 45 };
+            yAxes[0].axisLabel = { ...(yAxes[0].axisLabel || {}), fontSize: 11 };
+
+            baseOption.xAxis = Array.isArray(baseOption.xAxis) ? xAxes : xAxes[0];
+            baseOption.yAxis = Array.isArray(baseOption.yAxis) ? yAxes : yAxes[0];
+        }
+
+        if (chartType === 'pie') {
+            baseOption.series = baseOption.series && baseOption.series.length ? baseOption.series : [{ type: 'pie' }];
+            baseOption.series[0].data = chartData.data || [];
+        }
+
+        baseOption.backgroundColor = baseOption.backgroundColor || '#ffffff';
+        baseOption.grid = { left: '10%', right: '10%', bottom: '20%', top: '15%', containLabel: true, ...(baseOption.grid || {}) };
+        baseOption.textStyle = { fontFamily: 'Arial, sans-serif', fontSize: 12, ...(baseOption.textStyle || {}) };
+
+        return baseOption;
+    }
+
+    createChartContainer(hostMessageEl) {
+        const scope = hostMessageEl || document.querySelector('.ai-message:last-child') || document.body;
+
+        // reuse if present
+        let chartDiv = scope.querySelector('.medical-chart');
+        if (!chartDiv) {
+            chartDiv = document.createElement('div');
+            chartDiv.className = 'medical-chart border rounded p-2';
+            chartDiv.style.cssText = `
+      width: 100%;
+      height: 500px;
+      margin-top: 20px;
+      min-height: 400px;
+      position: relative;
+    `;
+            scope.appendChild(chartDiv);
+        }
+
+        // ⬇ ensure toolbar exists every time (first or subsequent calls)
+        let toolbar = chartDiv.querySelector('.chart-toolbar');
+        if (!toolbar) {
+            toolbar = document.createElement('div');
+            toolbar.className = 'chart-toolbar';
+            toolbar.style.cssText = `
+      position: absolute; top: 8px; right: 8px; z-index: 10;
+      display: flex; gap: 6px;
     `;
 
-        // Add close button
-        const closeButton = document.createElement('button');
-        closeButton.innerHTML = '×';
-        closeButton.className = 'btn btn-sm btn-outline-secondary';
-        closeButton.style.cssText = `
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        z-index: 10;
-        width: 30px;
-        height: 30px;
-        padding: 0;
-        line-height: 1;
-    `;
-        closeButton.onclick = () => this.removeChart(chartIndex);
-        chartDiv.appendChild(closeButton);
+            const downloadBtn = document.createElement('button');
+            downloadBtn.className = 'btn btn-sm btn-outline-secondary';
+            downloadBtn.title = 'Download chart as PNG';
+            downloadBtn.textContent = '⬇';
+            downloadBtn.style.cssText = 'width:30px;height:30px;line-height:1;padding:0;';
+            downloadBtn.onclick = () => {
+                const chart = this.charts.get(chartDiv);
+                if (!chart) return;
+                const url = chart.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#fff' });
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'chart.png';
+                a.click();
+            };
 
-        // Find insertion point
-        const tableContainer = document.querySelector('.ai-message:last-child');
-        tableContainer.appendChild(chartDiv);
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'btn btn-sm btn-outline-secondary';
+            closeBtn.title = 'Close chart';
+            closeBtn.textContent = '×';
+            closeBtn.style.cssText = 'width:30px;height:30px;line-height:1;padding:0;';
+            closeBtn.onclick = () => this.removeChart(chartDiv);
+
+            toolbar.appendChild(downloadBtn);
+            toolbar.appendChild(closeBtn);
+            chartDiv.appendChild(toolbar);
+        }
 
         return chartDiv;
     }
 
-    removeChart(chartIndex) {
-        const chartContainer = document.getElementById(`chart_${chartIndex}`);
-        if (chartContainer) {
-            chartContainer.remove();
-        }
 
-        // Dispose chart instance to free memory
-        const chart = this.charts.get(`chart_${chartIndex}`);
+
+    removeChart(chartContainer) {
+        if (!chartContainer) return;
+        const chart = this.charts.get(chartContainer);
         if (chart) {
             chart.dispose();
-            this.charts.delete(`chart_${chartIndex}`);
+            this.charts.delete(chartContainer);
         }
+        chartContainer.remove();
     }
 
-    showChartLoading() {
-        // Add loading spinner if needed
-        console.log('Generating chart...');
-    }
-
-    hideChartLoading() {
-        console.log('Chart generated successfully');
-    }
-
-    showChartError(message) {
-        alert(`Chart generation failed: ${message}`);
-    }
-
-    // Cleanup all charts when needed
+    showChartLoading() { console.log('Generating chart...'); }
+    hideChartLoading() { console.log('Chart generated successfully'); }
+    showChartError(message) { alert(`Chart generation failed: ${message}`); }
     disposeAllCharts() {
         this.charts.forEach(chart => chart.dispose());
         this.charts.clear();
     }
 }
 
-// Initialize chart generator
-const chartGenerator = new MedicalChartGenerator();
-
-// Modify your existing response handler to include chart button
-function handleQueryResponse(data) {
-    // Your existing table rendering code...
-
-    // Add chart button if charts are available
-    if (data.chart_suggestions) {
-        const tableContainer = document.querySelector('.response:last-child');
-        chartGenerator.addChartButton(data, tableContainer);
-    }
+if (!window.chartGenerator) {
+    window.chartGenerator = new MedicalChartGenerator();
 }
-
-// Example usage in your existing chat interface:
-/*
-fetch('/ask', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({q: userQuery})
-})
-.then(response => response.json())
-.then(data => {
-    // Render table as usual
-    renderTable(data);
-    
-    // Add chart functionality
-    handleQueryResponse(data);
-})
-.catch(error => console.error('Error:', error));
-*/

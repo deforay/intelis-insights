@@ -226,8 +226,9 @@ class QueryService
         $intentPrompt = <<<PROMPT
 You are analyzing a medical laboratory database query. Consider the business context and conversation history when determining intent.
 
-$businessContext
-$contextInfo
+Pay Close Attention to extremely critical Business Context : $businessContext
+
+More Context to make your queries more accurate : $contextInfo
 
 Analyze the query to determine type, intents, and domain relevance. If this query references previous conversation, indicate that in your response.
 

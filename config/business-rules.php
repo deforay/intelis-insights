@@ -45,15 +45,17 @@ return [
         'default_assumptions' => [
             'description' => 'Default assumptions when query is ambiguous',
             'rules' => [
+                "Almost always the queries will use the sample test tables - form_vl, form_eid, form_tb, form_xyz where xyz is other test types",
+                'Never use the word gender or patient_gender for column aliases or data that is returned to user; always use the word "sex" where needed. When dealing with gender, always alias it to "sex"',
                 "If the query is not related to specific medical/laboratory data, reject it",
-                "Don't display database field names directly to users. Use smarter, human-friendly aliases",
+                "Don't display database field names directly to users. Always alias them.",
+                "Use smarter, human-friendly aliases with spaces and not with underscores",
                 "Don't use the auto-generated column names like 'COUNT(*)' or 'SUM(result_value_absolute)' directly. Use meaningful aliases instead",
                 'If no test type is mentioned, assume Viral Load (VL) tests - form_vl table',
                 'If query mentions "tests" or "samples" without specifics, default to VL - form_vl table',
                 'If query is about "patients", focus on VL test results',
                 'For date ranges without specification, assume last 12 months',
                 'When in doubt about scope, prefer focused queries over broad data dumps',
-                'Never use the word gender or patient_gender for column aliases; always use sex where needed. When dealing with gender, always alias it to sex',
                 "NEVER HALLUCINATE. This is medical data. If unsure, return not applicable, ask for clarification or state that you don't know"
             ]
         ],
