@@ -576,20 +576,11 @@ $providerNames = array_keys($providers);
         }
 
         .medical-chart {
-            background: white;
             border: 1px solid var(--border-color);
             border-radius: 8px;
             padding: 1rem;
             margin-top: 1rem;
-        }
-
-        .medical-chart {
-            background: white;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 1rem;
-            margin-top: 1rem;
-            min-height: 400px;
+            min-height: 600px !important;
             max-width: 100%;
             overflow: hidden;
         }
@@ -626,7 +617,7 @@ $providerNames = array_keys($providers);
         @media (max-width: 768px) {
             .medical-chart {
                 height: 400px !important;
-                min-height: 350px;
+                min-height: 450px;
                 padding: 0.5rem;
             }
         }

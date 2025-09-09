@@ -67,22 +67,28 @@ This generates `var/schema.json`. Re‑run it whenever the database schema chang
 ## Workflow
 
 **High-level flow**
+**High-level flow**
 1. **User asks** a question (UI `/chat` or `POST /ask`).
-2. **Context is built**: user query + `var/schema.json` + business rules + field guide → prompt to the selected LLM.
+2. **Context is built**: user query + conversation history + `var/schema.json` + business rules + field guide → prompt to the selected LLM.
 3. **LLM generates SQL** (QueryService validates & enforces privacy rules).
 4. **SQL is executed** against MySQL (DatabaseService).
-5. **Results are returned** to the caller (rows, counts, timing, debug info).
+5. **Charts are generated** based on the query output.
+6. **Results are returned** to the caller (rows, counts, timing, debug info, charts) and conversation context is updated.
 
 ```mermaid
-graph TD
+flowchart TD
   U["User Query in Natural Language (via UI or API)"] --> QS["<strong>QueryService generates Prompt for LLM.</strong> <br><br>User Query, Schema, Business rules, and Field Guides are attached to Prompt "]
   SCH["Database Schema - without any actual data"] --> QS
   BR["Predefined Business Rules"] --> QS
   FG["Predefined Field Guide"] --> QS
+  CTX[Conversation context/history] --> QS
+
   QS --> LLM["LLM generates SQL based on Prompt"]
   LLM --> VAL["Validate SQL & enforce privacy"]
-  VAL --> DB["MySQL executes SQL"]
-  DB --> RESP["Response JSON"]
+  VAL --> DB[(MySQL executes SQL)]
+  DB --> CS["Chart generation based on Query Output"]
+  CS --> RESP[Response JSON with Query Output + Charts]
+  RESP --> CTX
 ```
 
 ## LLM Providers

@@ -13,8 +13,6 @@ return [
                 'patient_first_name',
                 'patient_last_name',
                 'patient_id',
-                'facility_id',
-                'lab_id',
                 'patient_art_no',
                 'child_id',
                 'child_name',
@@ -34,8 +32,6 @@ return [
                 'patient_id',
                 'child_id',
                 'mother_id',
-                'facility_id',
-                'lab_id',
             ],
             'forbidden_patterns' => [
                 '/\bpatient_first_name\b/i',
