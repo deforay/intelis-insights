@@ -10,6 +10,9 @@ config/db.php
 # Generated schema file
 var/schema.json
 
+# RAG snippets (generated)
+corpus/snippets.jsonl
+
 # Composer dependencies
 vendor/*
 vendor/**
@@ -45,3 +48,12 @@ dist/
 .env
 .env.local
 .env.production
+
+# RAG/Qdrant generated data
+qdrant_storage/**
+
+# Cache
+var/cache/**
+
+# IDE security plugin output
+.github/instructions/snyk_rules.instructions.md

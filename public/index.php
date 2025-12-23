@@ -4,6 +4,7 @@
 declare(strict_types=1);
 
 use Slim\Factory\AppFactory;
+use App\Llm\LlmRouter;
 use App\Services\ChartService;
 use App\Services\QueryService;
 use App\Services\DatabaseService;
@@ -30,9 +31,11 @@ $schemaPath = $appCfg['schema_path'];
 $schema = is_file($schemaPath) ? json_decode(file_get_contents($schemaPath), true) : [];
 
 // Initialize services
-$queryService = new QueryService($appCfg, $businessRules, $fieldGuide, $schema);
+$router          = new LlmRouter($appCfg);
+// Pass null for ConversationContextService (5th param) and LlmRouter as 6th param
+$queryService    = new QueryService($appCfg, $businessRules, $fieldGuide, $schema, null, $router);
 $databaseService = new DatabaseService($dbCfg);
-$chartService = new ChartService($queryService->getLlmClient());
+$chartService    = new ChartService($router);
 
 // Health check routes
 $app->get('/', function ($request, $response) {
@@ -96,6 +99,11 @@ $app->post('/ask', function ($request, $response) use ($queryService, $databaseS
         $model    = isset($body['model'])    ? (string)$body['model']    : null;
         $queryService->overrideLlm($provider, $model);
 
+        // per-step override map: {"intent": {...}, "sql": {...}, "chart": {...}}
+        if (!empty($body['provider_map']) && is_array($body['provider_map'])) {
+            $queryService->overrideLlmMap($body['provider_map']);
+        }
+
         $queryResult = $queryService->processQuery($query);
         $dbResult    = $databaseService->executeQuery($queryResult['sql']);
 
@@ -104,8 +112,8 @@ $app->post('/ask', function ($request, $response) use ($queryService, $databaseS
         if ($dbResult['count'] > 0 && $dbResult['count'] <= 1000) {
             try {
                 $chartSuggestions = $chartService->analyzeDataForCharts(
-                    $dbResult, 
-                    $queryResult['intent'], 
+                    $dbResult,
+                    $queryResult['intent'],
                     $query
                 );
             } catch (\Throwable $chartError) {
@@ -114,17 +122,25 @@ $app->post('/ask', function ($request, $response) use ($queryService, $databaseS
             }
         }
 
-        $llmIdent = $queryService->getLlmIdentity();
+        $llmIdent  = $queryService->getLlmIdentity();
         $totalTime = microtime(true) - $startTime;
 
         $response_data = [
             'sql'   => $queryResult['sql'],
+            'verification' => $queryResult['verification'] ?? null,
+            'concerns' => $queryResult['concerns'] ?? [],
+            'citations' => $queryResult['citations'] ?? [],
+            'retrieved_context_ids' => $queryResult['retrieved_context_ids'] ?? [],
+            'context' => $queryResult['context'] ?? [],
             'count' => $dbResult['count'],
             'rows'  => $dbResult['rows'],
             'chart_suggestions' => $chartSuggestions,
             'timing' => [
-                'provider' => $llmIdent['provider'] ?? 'unknown',
-                'model_used' => $llmIdent['model'] ?? 'unknown',
+                'llm' => [
+                    'intent' => $llmIdent['intent'],
+                    'sql'    => $llmIdent['sql'],
+                    'chart'  => $llmIdent['chart'],
+                ],
                 'total_ms' => round($totalTime * 1000),
                 'query_processing_ms' => $queryResult['processing_time_ms'],
                 'db_execution_ms' => $dbResult['execution_time_ms'],
@@ -159,6 +175,7 @@ $app->post('/ask', function ($request, $response) use ($queryService, $databaseS
         return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
     }
 });
+
 $app->post('/chart-data', function ($request, $response) use ($chartService) {
     try {
         $body = (array)$request->getParsedBody();
@@ -176,7 +193,6 @@ $app->post('/chart-data', function ($request, $response) use ($chartService) {
             'data' => $formattedData
         ]));
         return $response->withHeader('Content-Type', 'application/json');
-
     } catch (\Throwable $e) {
         $response->getBody()->write(json_encode([
             'error' => 'Chart data formatting failed',

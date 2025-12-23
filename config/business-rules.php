@@ -64,6 +64,7 @@ return [
                 'If query mentions "tests" or "samples" without specifics, default to VL - form_vl table',
                 'If query is about "patients", focus on VL test results',
                 'For date ranges without specification, assume last 12 months',
+                'When user asks for lab or by lab, it means testing lab which is lab_id in form_vl, form_eid, form_tb etc',
                 'When in doubt about scope, prefer focused queries over broad data dumps',
                 "NEVER HALLUCINATE. This is medical data. If unsure, return not applicable, ask for clarification or state that you don't know"
             ]

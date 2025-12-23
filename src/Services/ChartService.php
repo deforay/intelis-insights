@@ -4,16 +4,18 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Llm\LlmRouter;
 use App\Llm\AbstractLlmClient;
 
 class ChartService
 {
     private AbstractLlmClient $llm;
+    private LlmRouter $router;
     private int $maxSuggestions = 6;
 
-    public function __construct(AbstractLlmClient $llm)
+    public function __construct(LlmRouter $router)
     {
-        $this->llm = $llm;
+        $this->router = $router;
     }
 
     public function analyzeDataForCharts(array $dbResult, string $intent, string $originalQuery = ''): ?array
@@ -122,7 +124,8 @@ class ChartService
         $prompt = $this->buildChartAnalysisPrompt($analysis, $intent, $query);
 
         try {
-            $response = $this->llm->generateJson($prompt, 1200);
+            $client = $this->router->client('chart'); // optional per-request override handled below if you want
+            $response = $client->generateJson($prompt, 1200);
             // Some models return JSON-with-prose; strip non-JSON safely
             $json = $this->extractJson($response);
             $parsed = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
@@ -148,17 +151,17 @@ class ChartService
 
 
     private function buildChartAnalysisPrompt(array $analysis, string $intent, string $query): string
-{
-    $columnInfo = '';
-    foreach ($analysis['columns'] as $column => $info) {
-        $sampleValues = implode(', ', array_slice($info['sample_values'], 0, 3));
-        $columnInfo .= "- {$column}: {$info['type']}, {$info['unique_count']} unique, samples: {$sampleValues}\n";
-    }
+    {
+        $columnInfo = '';
+        foreach ($analysis['columns'] as $column => $info) {
+            $sampleValues = implode(', ', array_slice($info['sample_values'], 0, 3));
+            $columnInfo .= "- {$column}: {$info['type']}, {$info['unique_count']} unique, samples: {$sampleValues}\n";
+        }
 
-    $sampleDataJson = json_encode($analysis['sample_data'], JSON_PRETTY_PRINT);
+        $sampleDataJson = json_encode($analysis['sample_data'], JSON_PRETTY_PRINT);
 
-    // Tight JSON spec the model must follow
-    return <<<PROMPT
+        // Tight JSON spec the model must follow
+        return <<<PROMPT
 You are a medical data visualization expert. Analyze this DB result and propose chart configurations.
 
 QUERY: "{$query}"
@@ -201,7 +204,7 @@ Rules of thumb:
 
 Return JSON only.
 PROMPT;
-}
+    }
 
 
 

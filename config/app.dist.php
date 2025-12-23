@@ -35,5 +35,11 @@ return [
                 'timeout'  => 30,
             ],
         ],
+        // Optional overrides per step. If omitted, use the default provider+model above.
+        'routing' => [
+            // 'intent' => ['provider' => 'openai'],   // will use openai + its model
+            // 'sql'    => ['provider' => 'ollama'],   // will use ollama + its model
+            // 'chart'  => ['provider' => 'openai'],   // will use openai + its model
+        ],
     ],
 ];

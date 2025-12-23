@@ -26,10 +26,11 @@ $clientCfg = [
     'providers' => array_map(function ($p) {
         return [
             'model'   => $p['model']   ?? '',
-            // (Keys and base URLs remain server-side; we don’t expose API keys)
+            // (Keys and base URLs remain server-side; we don't expose API keys)
             'timeout' => $p['timeout'] ?? 30,
         ];
     }, $providers),
+    'routing' => $llmCfg['routing'] ?? [],
 ];
 
 // Precompute a safe list of provider names
@@ -87,12 +88,6 @@ $providerNames = array_keys($providers);
             margin-bottom: 0;
         }
 
-        .chat-header small {
-            color: var(--medium-gray);
-            font-size: 0.75rem;
-            font-weight: 400;
-        }
-
         .status-badges {
             display: flex;
             gap: 0.5rem;
@@ -136,33 +131,32 @@ $providerNames = array_keys($providers);
             border-color: #0b5ed7;
         }
 
-        /* Settings panel */
-        .settings-panel {
-            background: #fafbfc;
+        /* Modal Styles */
+        .modal-content {
+            border-radius: 16px;
+            border: none;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .modal-header {
+            padding: 1.5rem 2rem 1rem;
             border-bottom: 1px solid var(--border-color);
-            animation: slideDown 0.3s ease-out;
         }
 
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .modal-title {
+            font-weight: 600;
+            color: var(--dark-gray);
         }
 
-        .settings-content {
-            padding: 1.5rem;
+        .modal-body {
+            padding: 1.5rem 2rem 2rem;
         }
 
         .form-label {
             font-weight: 600;
             color: var(--dark-gray);
             font-size: 0.875rem;
+            margin-bottom: 0.5rem;
         }
 
         .form-control,
@@ -183,6 +177,62 @@ $providerNames = array_keys($providers);
         .form-text {
             color: var(--medium-gray);
             font-size: 0.75rem;
+            margin-top: 0.25rem;
+        }
+
+        .form-check-input:checked {
+            background-color: var(--primary-blue);
+            border-color: var(--primary-blue);
+        }
+
+        .form-check-input:focus {
+            border-color: var(--primary-blue);
+            outline: 0;
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+        }
+
+        /* Settings sections */
+        .settings-section {
+            margin-bottom: 2rem;
+        }
+
+        .settings-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .settings-section h6 {
+            color: var(--dark-gray);
+            font-weight: 600;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+        }
+
+        .per-step-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        @media (min-width: 768px) {
+            .per-step-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .step-config {
+            padding: 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            background: #fafbfc;
+        }
+
+        .step-config h7 {
+            font-weight: 600;
+            color: var(--dark-gray);
+            font-size: 0.875rem;
+            margin-bottom: 0.75rem;
+            display: block;
         }
 
         /* Chat messages */
@@ -219,6 +269,17 @@ $providerNames = array_keys($providers);
             animation: messageSlide 0.3s ease-out;
         }
 
+        .alert-compact {
+            padding: .5rem .75rem;
+            margin-top: .5rem;
+            font-size: .82rem
+        }
+
+        .alert-compact .small {
+            font-size: .8rem
+        }
+
+
         @keyframes messageSlide {
             from {
                 opacity: 0;
@@ -252,13 +313,17 @@ $providerNames = array_keys($providers);
             white-space: pre-wrap;
         }
 
-        /* Engine info styling */
+        /* Engine info */
         .engine-info {
             font-size: 0.875rem;
             margin-bottom: 0.75rem;
             padding-bottom: 0.75rem;
             border-bottom: 1px solid var(--border-color);
             color: var(--medium-gray);
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem;
         }
 
         .engine-info strong {
@@ -268,15 +333,63 @@ $providerNames = array_keys($providers);
         .engine-badge {
             background: var(--light-blue);
             color: var(--primary-blue);
-            border: 1px solid rgba(13, 110, 253, 0.2);
+            border: 1px solid rgba(13, 110, 253, .2);
             font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', monospace;
-            font-size: 0.75rem;
-            padding: 0.25rem 0.5rem;
-            border-radius: 6px;
-            margin-left: 0.5rem;
+            font-size: 0.65rem;
+            padding: 0.15rem 0.35rem;
+            border-radius: 4px;
+            margin-left: 0.3rem;
+            display: inline-block;
         }
 
-        /* SQL block styling */
+        .citations-wrap {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .35rem;
+            margin-top: .35rem
+        }
+
+        .citation-badge {
+            background: #eef2ff;
+            color: #374151;
+            border: 1px solid #dbeafe;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', monospace;
+            font-size: .72rem;
+            padding: .15rem .4rem;
+            border-radius: 6px
+        }
+
+        .citation-badge[data-hit="true"] {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, .15)
+        }
+
+        .details-box {
+            background: #fafbfc;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: .6rem .75rem;
+            margin-top: .5rem
+        }
+
+        .details-box code {
+            font-size: .72rem
+        }
+
+        .details-box {
+            background: #fafbfc;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: .6rem .75rem;
+            margin-top: .5rem;
+        }
+
+        .details-box code {
+            font-size: .72rem;
+        }
+
+
+        /* SQL block */
         .sql-query-block {
             background: #f8f9fa;
             border: 1px solid var(--border-color);
@@ -296,7 +409,7 @@ $providerNames = array_keys($providers);
             display: block;
         }
 
-        /* Table styling */
+        /* Table */
         .sql-result-table-container {
             margin-top: 1rem;
             border-radius: 12px;
@@ -348,16 +461,6 @@ $providerNames = array_keys($providers);
             gap: 0.25rem;
         }
 
-        .context-debug-info {
-            margin-top: 0.5rem;
-            padding: 0.5rem;
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 6px;
-            font-size: 0.75rem;
-            color: #6c757d;
-        }
-
         /* Chat input */
         .chat-input {
             padding: 1.5rem;
@@ -400,7 +503,6 @@ $providerNames = array_keys($providers);
         }
 
         .btn-icon {
-            border: 1px solid var(--border-color);
             background: #fff;
             width: 40px;
             height: 40px;
@@ -409,7 +511,7 @@ $providerNames = array_keys($providers);
             align-items: center;
             justify-content: center;
             border: none;
-            transition: all 0.2s ease;
+            transition: .2s;
         }
 
         .btn-send {
@@ -440,7 +542,7 @@ $providerNames = array_keys($providers);
             transform: scale(1.05);
         }
 
-        /* Loading animation */
+        /* Loading */
         .loading-message {
             display: flex;
             align-items: center;
@@ -467,11 +569,11 @@ $providerNames = array_keys($providers);
         }
 
         .loading-dot:nth-child(2) {
-            animation-delay: 0.2s;
+            animation-delay: .2s;
         }
 
         .loading-dot:nth-child(3) {
-            animation-delay: 0.4s;
+            animation-delay: .4s;
         }
 
         @keyframes loadingPulse {
@@ -479,8 +581,8 @@ $providerNames = array_keys($providers);
             0%,
             80%,
             100% {
-                transform: scale(0.8);
-                opacity: 0.5;
+                transform: scale(.8);
+                opacity: .5;
             }
 
             40% {
@@ -489,142 +591,9 @@ $providerNames = array_keys($providers);
             }
         }
 
-        /* Responsive design */
-        @media (max-width: 768px) {
-            .chat-container {
-                margin: 0.5rem;
-                height: calc(100vh - 1rem);
-                border-radius: 12px;
-            }
-
-            .chat-header {
-                padding: 1rem;
-                border-radius: 12px 12px 0 0;
-            }
-
-            .settings-content {
-                padding: 1rem;
-            }
-
-            .settings-row {
-                flex-direction: column;
-                gap: 1rem;
-            }
-
-            .user-message,
-            .ai-message {
-                max-width: 95%;
-            }
-
-            .status-badges {
-                flex-wrap: wrap;
-            }
-
-            .timing-info {
-                flex-direction: column;
-                gap: 0.5rem;
-            }
-        }
-
-        /* Dark mode support for better contrast */
-        @media (prefers-color-scheme: dark) {
-            /* Keep light theme for consistency with existing design */
-        }
-
-
-        /* Chart button styling */
-        .chart-button {
-            margin-top: 1rem;
-            padding: 0.5rem 1rem;
-            background: var(--primary-blue);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 0.875rem;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .chart-button:hover {
-            background: #0b5ed7;
-            transform: translateY(-1px);
-        }
-
-        .chart-options {
-            background: #f8f9fa;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 1rem;
-            margin-top: 1rem;
-        }
-
-        .chart-option-button {
-            background: white;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            padding: 0.75rem;
-            margin-right: 0.5rem;
-            margin-bottom: 0.5rem;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: inline-block;
-        }
-
-        .chart-option-button:hover {
-            background: var(--light-blue);
-            border-color: var(--primary-blue);
-        }
-
-        .medical-chart {
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 1rem;
-            margin-top: 1rem;
-            min-height: 600px !important;
-            max-width: 100%;
-            overflow: hidden;
-        }
-
-        .chart-options {
-            background: #f8f9fa;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 1rem;
-            margin-top: 1rem;
-            max-width: 100%;
-        }
-
-        .chart-option-button {
-            background: white;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            padding: 0.75rem;
-            margin-right: 0.5rem;
-            margin-bottom: 0.5rem;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: inline-block;
-            max-width: 100%;
-            word-wrap: break-word;
-        }
-
-        .chart-option-button:hover {
-            background: var(--light-blue);
-            border-color: var(--primary-blue);
-        }
-
-        /* Responsive chart containers */
-        @media (max-width: 768px) {
-            .medical-chart {
-                height: 400px !important;
-                min-height: 450px;
-                padding: 0.5rem;
-            }
-        }
-
+        /* Chart Panel Styles - to match MedicalChartGenerator */
         .chart-panel {
             background: #f8fafc;
-            /* subtle */
             border: 1px solid #e5e7eb;
             border-radius: 12px;
             padding: 14px 16px;
@@ -711,7 +680,36 @@ $providerNames = array_keys($providers);
             box-shadow: 0 0 0 3px rgba(99, 102, 241, .18);
         }
 
-        /* small icon label style for the Generate charts */
+        .medical-chart {
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            min-height: 400px;
+            max-width: 100%;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Generate Chart button style */
+        .generate-chart-btn {
+            color: var(--primary-blue);
+            text-decoration: none;
+            font-size: 0.875rem;
+            cursor: pointer;
+            border: none;
+            background: none;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .generate-chart-btn:hover {
+            background-color: var(--light-blue);
+            color: var(--primary-blue);
+            text-decoration: none;
+        }
+
         .link-icon {
             text-decoration: none;
         }
@@ -720,8 +718,50 @@ $providerNames = array_keys($providers);
             font-style: normal;
             margin-right: 4px;
         }
-    </style>
 
+        /* Responsive */
+        @media (max-width: 768px) {
+            .chat-container {
+                margin: .5rem;
+                height: calc(100vh - 1rem);
+                border-radius: 12px;
+            }
+
+            .chat-header {
+                padding: 1rem;
+                border-radius: 12px 12px 0 0;
+            }
+
+            .user-message,
+            .ai-message {
+                max-width: 95%;
+            }
+
+            .status-badges {
+                flex-wrap: wrap;
+            }
+
+            .timing-info {
+                flex-direction: column;
+                gap: .5rem;
+            }
+
+            .modal-header,
+            .modal-body {
+                padding: 1rem 1.5rem;
+            }
+
+            .medical-chart {
+                min-height: 300px;
+                padding: 0.5rem;
+            }
+
+            .chart-options-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 </head>
 
@@ -731,7 +771,6 @@ $providerNames = array_keys($providers);
             <div class="d-flex align-items-center gap-3">
                 <div>
                     <h5 class="mb-0">InteLIS Insights</h5>
-
                 </div>
                 <div class="status-badges">
                     <span id="active-provider" class="status-badge">—</span>
@@ -739,8 +778,7 @@ $providerNames = array_keys($providers);
                 </div>
             </div>
             <div class="d-flex align-items-center gap-2">
-
-                <button class="btn btn-modern" id="toggle-settings">
+                <button class="btn btn-modern" data-bs-toggle="modal" data-bs-target="#settingsModal">
                     <i class="bi bi-gear"></i> Settings
                 </button>
                 <button id="reset-context-btn" class="btn btn-modern" title="Reset conversation context">
@@ -752,35 +790,6 @@ $providerNames = array_keys($providers);
             </div>
         </div>
 
-        <!-- Settings panel -->
-        <div id="settings-panel" class="settings-panel" style="display:none;">
-            <div class="settings-content">
-                <div class="row settings-row g-3">
-                    <div class="col-12 col-md-4">
-                        <label for="provider-select" class="form-label">Provider</label>
-                        <select id="provider-select" class="form-select form-select-sm">
-                            <?php foreach ($providerNames as $p): ?>
-                                <option value="<?= htmlspecialchars($p, ENT_QUOTES) ?>"
-                                    <?= $p === $defaultProvider ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($p, ENT_QUOTES) ?><?= $p === $defaultProvider ? ' (default)' : '' ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="col-12 col-md-6">
-                        <label for="model-input" class="form-label">Model</label>
-                        <input id="model-input" type="text" class="form-control" placeholder="gpt-4o-mini">
-                        <div class="form-text">
-                            Uses server defaults from <code>config/app.php</code>. Override here per request.
-                        </div>
-                    </div>
-                    <div class="col-12 col-md-2 d-flex align-items-end">
-                        <button id="save-settings" class="btn btn-primary btn-modern w-100">Save</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <div class="chat-body" id="chat-body">
             <div class="ai-message">
                 <div class="message-content">Hello! Ask me a question about InteLIS.</div>
@@ -789,32 +798,13 @@ $providerNames = array_keys($providers);
 
         <div class="chat-input">
             <div class="input-group">
-                <input
-                    type="text"
-                    id="user-input"
-                    class="form-control chat-input-field"
-                    placeholder="Ask a question..."
-                    autocomplete="off">
+                <input type="text" id="user-input" class="form-control chat-input-field" placeholder="Ask a question..." autocomplete="off">
                 <div class="input-buttons">
-                    <button
-                        id="cancel-btn"
-                        class="btn btn-icon btn-cancel d-none"
-                        type="button"
-                        title="Cancel request"
-                        aria-label="Cancel">
-                        <i class="bi bi-x-lg" aria-hidden="true"></i>
-                        <span class="visually-hidden">Cancel</span>
+                    <button id="cancel-btn" class="btn btn-icon btn-cancel d-none" type="button" title="Cancel request" aria-label="Cancel">
+                        <i class="bi bi-x-lg" aria-hidden="true"></i><span class="visually-hidden">Cancel</span>
                     </button>
-
-                    <button
-                        id="send-btn"
-                        class="btn btn-icon btn-send"
-                        type="button"
-                        disabled
-                        title="Send message"
-                        aria-label="Send">
-                        <i class="bi bi-send-fill" aria-hidden="true"></i>
-                        <span class="visually-hidden">Send</span>
+                    <button id="send-btn" class="btn btn-icon btn-send" type="button" disabled title="Send message" aria-label="Send">
+                        <i class="bi bi-send-fill" aria-hidden="true"></i><span class="visually-hidden">Send</span>
                     </button>
                 </div>
             </div>
@@ -822,25 +812,107 @@ $providerNames = array_keys($providers);
         </div>
     </div>
 
-    <script src="/js/charts.js?v=<?= filemtime(__DIR__ . '/../../public/js/charts.js'); ?>"></script>
+    <!-- Settings Modal -->
+    <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="settingsModalLabel">
+                        <i class="bi bi-gear me-2"></i>LLM Settings
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="settings-section">
+                        <h6>Basic Configuration</h6>
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6">
+                                <label for="provider-select" class="form-label">Provider</label>
+                                <select id="provider-select" class="form-select">
+                                    <!-- Options populated by JavaScript -->
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label for="model-input" class="form-label">Model</label>
+                                <input id="model-input" type="text" class="form-control" placeholder="gpt-4o-mini">
+                                <div class="form-text">Uses server defaults from config/app.php. Override here per request.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="per-step-toggle">
+                            <label class="form-check-label" for="per-step-toggle">
+                                <strong>Use different models per step</strong>
+                            </label>
+                        </div>
+                        <div class="form-text mb-3">Configure different LLM providers/models for intent analysis, SQL generation, and chart creation.</div>
+
+                        <div id="per-step-config" class="per-step-grid" style="display:none;">
+                            <!-- Intent -->
+                            <div class="step-config">
+                                <h7>Intent Analysis</h7>
+                                <select id="intent-provider" class="form-select form-select-sm mb-2">
+                                    <!-- Options populated by JavaScript -->
+                                </select>
+                                <input id="intent-model" class="form-control form-control-sm" placeholder="model name">
+                            </div>
+                            <!-- SQL -->
+                            <div class="step-config">
+                                <h7>SQL Generation</h7>
+                                <select id="sql-provider" class="form-select form-select-sm mb-2">
+                                    <!-- Options populated by JavaScript -->
+                                </select>
+                                <input id="sql-model" class="form-control form-control-sm" placeholder="model name">
+                            </div>
+                            <!-- Chart -->
+                            <div class="step-config">
+                                <h7>Chart Analysis</h7>
+                                <select id="chart-provider" class="form-select form-select-sm mb-2">
+                                    <!-- Options populated by JavaScript -->
+                                </select>
+                                <input id="chart-model" class="form-control form-control-sm" placeholder="model name">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary btn-modern" id="save-settings">Save Settings</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/charts.js"></script>
     <script id="llm-config" type="application/json">
         <?= json_encode($clientCfg, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>
     </script>
 
     <script>
+        // --- DOM refs ---
+        const perStepToggle = document.getElementById('per-step-toggle');
+        const perStepConfig = document.getElementById('per-step-config');
+        const intentProvider = document.getElementById('intent-provider');
+        const intentModel = document.getElementById('intent-model');
+        const sqlProvider = document.getElementById('sql-provider');
+        const sqlModel = document.getElementById('sql-model');
+        const chartProvider = document.getElementById('chart-provider');
+        const chartModel = document.getElementById('chart-model');
+
         const chatBody = document.getElementById('chat-body');
         const userInput = document.getElementById('user-input');
         const sendBtn = document.getElementById('send-btn');
         const cancelBtn = document.getElementById('cancel-btn');
         const clearBtn = document.getElementById('clear-btn');
         const resetContextBtn = document.getElementById('reset-context-btn');
-        const toggleSettingsBtn = document.getElementById('toggle-settings');
-        const settingsPanel = document.getElementById('settings-panel');
         const providerSelect = document.getElementById('provider-select');
         const modelInput = document.getElementById('model-input');
         const saveSettingsBtn = document.getElementById('save-settings');
         const activeProviderBadge = document.getElementById('active-provider');
         const activeModelBadge = document.getElementById('active-model');
+        const settingsModal = document.getElementById('settingsModal');
         const API_URL = '/ask';
         let abortController = null;
 
@@ -848,6 +920,73 @@ $providerNames = array_keys($providers);
         const llmCfg = JSON.parse(document.getElementById('llm-config').textContent || '{}');
         const defaultProvider = llmCfg.defaultProvider || '';
         const providerDefaults = llmCfg.providers || {};
+
+        // --- helpers ---
+        function populateProviderSelect(selectEl) {
+            selectEl.innerHTML = '';
+            Object.keys(providerDefaults).forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p;
+                opt.textContent = p;
+                selectEl.appendChild(opt);
+            });
+        }
+
+        function escapeHtml(s = '') {
+            return String(s).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+        }
+
+        function renderCitationsSection(data) {
+            const cits = Array.isArray(data.citations) ? data.citations.filter(Boolean) : [];
+            const retrieved = Array.isArray(data.retrieved_context_ids) ? data.retrieved_context_ids.filter(Boolean) : [];
+            if (!cits.length && !retrieved.length) return '';
+
+            const uniq = Array.from(new Set([...retrieved, ...cits]));
+            const badges = uniq.map(id => {
+                const hit = cits.includes(id);
+                return `<span class="citation-badge" data-hit="${hit}" title="${hit?'Cited by SQL step':'Retrieved only'}">${escapeHtml(id)}</span>`;
+            }).join(' ');
+
+            const mode = cits.length ? 'RAG (grounded)' : 'RAG (retrieval only)';
+            const contextId = 'ctx-' + Math.random().toString(36).substr(2, 9);
+
+            return `
+<button class="btn btn-sm btn-outline-primary mb-2" type="button" onclick="document.getElementById('${contextId}').style.display='block';this.style.display='none';">
+    <i class="bi bi-info-circle"></i> View Context (${uniq.length} items)
+</button>
+<div id="${contextId}" class="details-box" style="display:none;">
+    <div class="d-flex justify-content-between align-items-start mb-2">
+        <strong>Context: ${mode}</strong>
+        <button type="button" class="btn-close" style="font-size:0.7rem;" onclick="this.closest('.details-box').style.display='none';this.parentElement.parentElement.previousElementSibling.style.display='block';" aria-label="Close"></button>
+    </div>
+    <div class="citations-wrap">${badges}</div>
+    <details class="mt-1"><summary class="small text-muted">Show raw IDs</summary>
+        <code>${escapeHtml(JSON.stringify({citations:cits,retrieved_context_ids:retrieved},null,2))}</code>
+    </details>
+</div>`;
+        }
+
+
+        function setStepDefaultsFromRouting() {
+            const routing = llmCfg.routing || {};
+            const fallbackProv = defaultProvider || Object.keys(providerDefaults)[0] || '';
+
+            const rIntent = routing.intent || {};
+            const rSql = routing.sql || {};
+            const rChart = routing.chart || {};
+
+            intentProvider.value = rIntent.provider || fallbackProv;
+            sqlProvider.value = rSql.provider || fallbackProv;
+            chartProvider.value = rChart.provider || fallbackProv;
+
+            intentModel.value = rIntent.model || (providerDefaults[intentProvider.value]?.model || '');
+            sqlModel.value = rSql.model || (providerDefaults[sqlProvider.value]?.model || '');
+            chartModel.value = rChart.model || (providerDefaults[chartProvider.value]?.model || '');
+
+            intentModel.placeholder = providerDefaults[intentProvider.value]?.model || '';
+            sqlModel.placeholder = providerDefaults[sqlProvider.value]?.model || '';
+            chartModel.placeholder = providerDefaults[chartProvider.value]?.model || '';
+        }
 
         function updateBadges(provider, model) {
             activeProviderBadge.textContent = provider || '—';
@@ -859,10 +998,7 @@ $providerNames = array_keys($providers);
             messageDiv.className = sender === 'user' ? 'user-message' : 'ai-message';
             messageDiv.innerHTML = `<div class="message-content">${content}</div>`;
             chatBody.appendChild(messageDiv);
-
-            // Smooth scroll to bottom
             scrollToBottom();
-
             if (saveToHistory) localStorage.setItem('chatHistory', chatBody.innerHTML);
             return messageDiv;
         }
@@ -887,7 +1023,6 @@ $providerNames = array_keys($providers);
             const history = localStorage.getItem('chatHistory');
             if (history) {
                 chatBody.innerHTML = history;
-                // Use setTimeout to ensure DOM is updated before scrolling
                 setTimeout(() => scrollToBottom(), 100);
             }
         }
@@ -905,21 +1040,45 @@ $providerNames = array_keys($providers);
 
         function loadSettings() {
             let provider = providerSelect.value || defaultProvider || (Object.keys(providerDefaults)[0] || '');
-
             const savedProvider = localStorage.getItem('llmProvider');
             if (savedProvider && providerDefaults[savedProvider]) {
                 provider = savedProvider;
                 providerSelect.value = savedProvider;
             }
-
             const providerDefaultModel = providerDefaults[provider]?.model || '';
             const savedModel = localStorage.getItem('llmModel') || '';
             const model = savedModel || providerDefaultModel;
-
             modelInput.value = model;
             modelInput.placeholder = providerDefaultModel;
-
             updateBadges(provider, model);
+
+            // per-step
+            const usePerStep = localStorage.getItem('llmUsePerStep') === '1';
+            perStepToggle.checked = usePerStep;
+            perStepConfig.style.display = usePerStep ? 'grid' : 'none';
+
+            // defaults from server routing
+            setStepDefaultsFromRouting();
+
+            // overrides from localStorage
+            const spIntent = localStorage.getItem('llmIntentProvider');
+            const smIntent = localStorage.getItem('llmIntentModel');
+            const spSql = localStorage.getItem('llmSqlProvider');
+            const smSql = localStorage.getItem('llmSqlModel');
+            const spChart = localStorage.getItem('llmChartProvider');
+            const smChart = localStorage.getItem('llmChartModel');
+
+            if (spIntent && providerDefaults[spIntent]) intentProvider.value = spIntent;
+            if (spSql && providerDefaults[spSql]) sqlProvider.value = spSql;
+            if (spChart && providerDefaults[spChart]) chartProvider.value = spChart;
+
+            if (smIntent) intentModel.value = smIntent;
+            if (smSql) sqlModel.value = smSql;
+            if (smChart) chartModel.value = smChart;
+
+            intentModel.placeholder = providerDefaults[intentProvider.value]?.model || '';
+            sqlModel.placeholder = providerDefaults[sqlProvider.value]?.model || '';
+            chartModel.placeholder = providerDefaults[chartProvider.value]?.model || '';
         }
 
         function saveSettings() {
@@ -929,8 +1088,41 @@ $providerNames = array_keys($providers);
             localStorage.setItem('llmProvider', provider);
             localStorage.setItem('llmModel', model);
 
+            const usePerStep = perStepToggle.checked;
+            localStorage.setItem('llmUsePerStep', usePerStep ? '1' : '0');
+
+            if (usePerStep) {
+                localStorage.setItem('llmIntentProvider', intentProvider.value);
+                localStorage.setItem('llmIntentModel', (intentModel.value || providerDefaults[intentProvider.value]?.model || '').trim());
+
+                localStorage.setItem('llmSqlProvider', sqlProvider.value);
+                localStorage.setItem('llmSqlModel', (sqlModel.value || providerDefaults[sqlProvider.value]?.model || '').trim());
+
+                localStorage.setItem('llmChartProvider', chartProvider.value);
+                localStorage.setItem('llmChartModel', (chartModel.value || providerDefaults[chartProvider.value]?.model || '').trim());
+            }
             updateBadges(provider, model);
         }
+
+        // Event listeners
+        perStepToggle.addEventListener('change', () => {
+            perStepConfig.style.display = perStepToggle.checked ? 'grid' : 'none';
+        });
+
+        [intentProvider, sqlProvider, chartProvider].forEach(sel => {
+            sel.addEventListener('change', () => {
+                if (sel === intentProvider) {
+                    intentModel.placeholder = providerDefaults[intentProvider.value]?.model || '';
+                    if (!intentModel.value) intentModel.value = intentModel.placeholder;
+                } else if (sel === sqlProvider) {
+                    sqlModel.placeholder = providerDefaults[sqlProvider.value]?.model || '';
+                    if (!sqlModel.value) sqlModel.value = sqlModel.placeholder;
+                } else {
+                    chartModel.placeholder = providerDefaults[chartProvider.value]?.model || '';
+                    if (!chartModel.value) chartModel.value = chartModel.placeholder;
+                }
+            });
+        });
 
         providerSelect.addEventListener('change', () => {
             const provider = providerSelect.value;
@@ -940,13 +1132,11 @@ $providerNames = array_keys($providers);
             updateBadges(provider, defaultModel);
         });
 
-        toggleSettingsBtn.addEventListener('click', () => {
-            settingsPanel.style.display = settingsPanel.style.display === 'none' ? 'block' : 'none';
-        });
-
         saveSettingsBtn.addEventListener('click', () => {
             saveSettings();
-            settingsPanel.style.display = 'none';
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(settingsModal);
+            modal.hide();
         });
 
         let inFlight = false;
@@ -955,9 +1145,6 @@ $providerNames = array_keys($providers);
             inFlight = true;
             const query = userInput.value.trim();
             if (query === '') return;
-
-            const provider = (localStorage.getItem('llmProvider') || providerSelect.value || '').trim();
-            const model = (localStorage.getItem('llmModel') || modelInput.value || '').trim();
 
             addMessage('user', query);
             userInput.value = '';
@@ -973,8 +1160,37 @@ $providerNames = array_keys($providers);
                 const payload = {
                     q: query
                 };
-                if (provider) payload.provider = provider;
-                if (model) payload.model = model;
+
+                // build payload from settings
+                const usePerStep = localStorage.getItem('llmUsePerStep') === '1';
+                if (usePerStep) {
+                    const map = {};
+                    const ip = (localStorage.getItem('llmIntentProvider') || intentProvider.value || '').trim();
+                    const im = (localStorage.getItem('llmIntentModel') || intentModel.value || '').trim();
+                    const sp = (localStorage.getItem('llmSqlProvider') || sqlProvider.value || '').trim();
+                    const sm = (localStorage.getItem('llmSqlModel') || sqlModel.value || '').trim();
+                    const cp = (localStorage.getItem('llmChartProvider') || chartProvider.value || '').trim();
+                    const cm = (localStorage.getItem('llmChartModel') || chartModel.value || '').trim();
+
+                    if (ip || im) map.intent = {};
+                    if (ip) map.intent.provider = ip;
+                    if (im) map.intent.model = im;
+
+                    if (sp || sm) map.sql = {};
+                    if (sp) map.sql.provider = sp;
+                    if (sm) map.sql.model = sm;
+
+                    if (cp || cm) map.chart = {};
+                    if (cp) map.chart.provider = cp;
+                    if (cm) map.chart.model = cm;
+
+                    if (Object.keys(map).length) payload.provider_map = map;
+                } else {
+                    const provider = (localStorage.getItem('llmProvider') || providerSelect.value || '').trim();
+                    const model = (localStorage.getItem('llmModel') || modelInput.value || '').trim();
+                    if (provider) payload.provider = provider;
+                    if (model) payload.model = model;
+                }
 
                 const res = await fetch(API_URL, {
                     method: 'POST',
@@ -1002,14 +1218,31 @@ $providerNames = array_keys($providers);
                 const data = await res.json();
                 if (chatBody.contains(loadingMessage)) chatBody.removeChild(loadingMessage);
 
-                // Reflect the engine actually used by the server
-                const usedProvider = data.timing?.provider || provider || defaultProvider || '—';
-                const usedModel = data.timing?.model_used || model || (providerDefaults[usedProvider]?.model || '—');
-                updateBadges(usedProvider, usedModel);
+                // Show engines actually used
+                const llmTiming = data.timing?.llm || {};
+                const usedIntent = llmTiming.intent || {};
+                const usedSql = llmTiming.sql || {};
+                const usedChart = llmTiming.chart || {};
+
+                // Top badges reflect the SQL step
+                updateBadges(usedSql.provider || '—', usedSql.model || '—');
+
+                const ragCtxCount = (data.retrieved_context_ids || []).length;
+                const ragCitCount = (data.citations || []).length;
+                const ragBadgeHtml = `<span class="engine-badge">rag: ${ragCtxCount} ctx • ${ragCitCount} cit</span>`;
+
 
                 // Build response HTML
-                let responseHtml = `<div class="engine-info"><strong>Engine:</strong> ${usedProvider} <span class="engine-badge">${usedModel}</span></div>`;
+                let responseHtml = `<div class="engine-info">
+                    <strong>Engines:</strong>
+                    <span class="engine-badge">intent: ${usedIntent.provider || '—'} • ${usedIntent.model || '—'}</span>
+                    <span class="engine-badge">sql: ${usedSql.provider || '—'} • ${usedSql.model || '—'}</span>
+                    <span class="engine-badge">chart: ${usedChart.provider || '—'} • ${usedChart.model || '—'}</span>
+                    ${ragBadgeHtml}
+                    </div>`;
                 responseHtml += `<div class="mb-2"><strong>Result:</strong></div>`;
+
+                // --- RAG citations & context ---
 
                 if (Array.isArray(data.rows) && data.rows.length > 0) {
                     responseHtml += `<div class="sql-result-table-container"><table class="table table-sm">`;
@@ -1031,30 +1264,38 @@ $providerNames = array_keys($providers);
                 }
 
                 responseHtml += `<div class="sql-query-block"><strong>Generated SQL:</strong><br>${data.sql || ''}</div>`;
+                responseHtml += renderCitationsSection(data);
 
                 if (data.timing) {
                     responseHtml += `<div class="timing-info">
-                <div class="timing-item"><i class="bi bi-clock text-primary"></i><span>Total: ${data.timing.total_ms ?? '—'} ms</span></div>
-                <div class="timing-item"><i class="bi bi-cpu text-success"></i><span>Query: ${data.timing.query_processing_ms ?? '—'} ms</span></div>
-                <div class="timing-item"><i class="bi bi-database text-info"></i><span>DB: ${data.timing.db_execution_ms ?? '—'} ms</span></div>
-            </div>`;
+                        <div class="timing-item"><i class="bi bi-clock text-primary"></i><span>Total: ${data.timing.total_ms ?? '—'} ms</span></div>
+                        <div class="timing-item"><i class="bi bi-cpu text-success"></i><span>Query: ${data.timing.query_processing_ms ?? '—'} ms</span></div>
+                        <div class="timing-item"><i class="bi bi-database text-info"></i><span>DB: ${data.timing.db_execution_ms ?? '—'} ms</span></div>
+                    </div>`;
                 }
 
-                //             if (data.debug && data.debug.conversation_context) {
-                //                 const contextInfo = data.debug.conversation_context;
-                //                 responseHtml += `<div class="context-debug-info">
-                //     <strong>Context Debug:</strong><br>
-                //     <small>
-                //         History Count: ${data.debug.conversation_history_count || 0}<br>
-                //         Has Context: ${contextInfo.has_context ? 'Yes' : 'No'}<br>
-                //         ${contextInfo.has_context ? `Suggested Filters: ${(contextInfo.suggested_filters || []).length}` : ''}
-                //     </small>
-                // </div>`;
-                //             }
+                // Add verification display
+                if (data.verification) {
+                    if (!data.verification.matches_intent || data.verification.confidence < 0.8) {
+                        const confPct = Math.round((data.verification.confidence ?? 0) * 100);
+                        const why = escapeHtml(data.verification.reasoning || '');
+                        responseHtml += `<div class="alert alert-warning alert-compact mt-2">
+  <div><i class="bi bi-exclamation-triangle"></i> <strong>Confidence:</strong> ${confPct}%</div>
+  <details class="mt-1"><summary class="small">Why</summary><div class="mt-1">${why}</div></details>
+</div>`;
+
+                    }
+
+                    if (data.concerns && data.concerns.length > 0) {
+                        responseHtml += `<div class="alert alert-info mt-2">
+                            <small><strong>Notes:</strong> ${data.concerns.join(', ')}</small>
+                        </div>`;
+                    }
+                }
 
                 const messageDiv = addMessage('ai', responseHtml);
 
-                // Persist chart meta + render the button now
+                // Charts - use existing chartGenerator from charts.js
                 if (data.chart_suggestions?.suitable_for_charts) {
                     const meta = document.createElement('script');
                     meta.type = 'application/json';
@@ -1067,18 +1308,13 @@ $providerNames = array_keys($providers);
 
                     if (typeof chartGenerator !== 'undefined') {
                         chartGenerator.addChartButton({
-                                rows: data.rows || [],
-                                chart_suggestions: data.chart_suggestions
-                            },
-                            messageDiv
-                        );
+                            rows: data.rows || [],
+                            chart_suggestions: data.chart_suggestions
+                        }, messageDiv);
                     }
 
-                    // IMPORTANT: history must be saved again after DOM was mutated
                     localStorage.setItem('chatHistory', chatBody.innerHTML);
                 }
-
-
 
             } catch (error) {
                 if (chatBody.contains(loadingMessage)) chatBody.removeChild(loadingMessage);
@@ -1101,31 +1337,26 @@ $providerNames = array_keys($providers);
                     const payload = JSON.parse(meta.textContent || '{}');
                     const container = meta.closest('.ai-message');
                     if (!payload?.chart_suggestions?.suitable_for_charts || !container || typeof chartGenerator === 'undefined') return;
-
-                    // ❗ skip if already present from saved HTML
-                    if (container.querySelector('.generate-chart-btn')) return;
+                    if (container.querySelector('.generate-chart-btn')) return; // skip duplicate
 
                     chartGenerator.addChartButton(payload, container);
-                } catch {}
+                } catch (e) {
+                    console.error('Error rehydrating chart button:', e);
+                }
             });
         }
 
-
-
-
+        // Event listeners
         userInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 sendMessage();
             }
         });
-
         sendBtn.addEventListener('click', sendMessage);
-
         userInput.addEventListener('input', () => {
             sendBtn.disabled = userInput.value.trim() === '';
         });
-
         cancelBtn.addEventListener('click', () => {
             if (abortController) abortController.abort();
         });
@@ -1134,28 +1365,6 @@ $providerNames = array_keys($providers);
             localStorage.removeItem('chatHistory');
             chatBody.innerHTML = '<div class="ai-message"><div class="message-content">Hello! Ask me a question about InteLIS.</div></div>';
         });
-
-        // Delegated click: works for fresh + restored buttons
-        chatBody.addEventListener('click', (e) => {
-            const btn = e.target.closest('.generate-chart-btn');
-            if (!btn) return;
-
-            const container = btn.closest('.ai-message');
-            if (!container) return;
-
-            const metaEl = container.querySelector('.chart-meta');
-            if (!metaEl) return;
-
-            let payload = null;
-            try {
-                payload = JSON.parse(metaEl.textContent || '{}');
-            } catch {}
-
-            if (payload?.chart_suggestions?.suitable_for_charts) {
-                window.chartGenerator.showChartOptions(payload, container);
-            }
-        });
-
 
         resetContextBtn.addEventListener('click', async () => {
             try {
@@ -1168,23 +1377,15 @@ $providerNames = array_keys($providers);
                         clear_context: true
                     })
                 });
-
                 if (response.ok) {
-                    const data = await response.json();
-                    console.log('Context cleared:', data.message);
-
-                    // Show brief confirmation message
                     const confirmMsg = document.createElement('div');
                     confirmMsg.className = 'ai-message';
                     confirmMsg.innerHTML = '<div class="message-content"><em>Conversation context has been reset. Previous queries will no longer influence new questions.</em></div>';
                     chatBody.appendChild(confirmMsg);
                     chatBody.scrollTop = chatBody.scrollHeight;
-
-                    // Save to history so the confirmation persists
                     localStorage.setItem('chatHistory', chatBody.innerHTML);
                 }
             } catch (error) {
-                console.error('Failed to reset context:', error);
                 addMessage('ai', '<strong>Error:</strong> Failed to reset conversation context.');
             }
         });
@@ -1195,11 +1396,17 @@ $providerNames = array_keys($providers);
             }
         });
 
-
+        // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
+            // Populate provider selects
+            populateProviderSelect(providerSelect);
+            populateProviderSelect(intentProvider);
+            populateProviderSelect(sqlProvider);
+            populateProviderSelect(chartProvider);
+
             loadChatHistory();
             loadSettings();
-            rehydrateChartButtons();
+            rehydrateChartButtons(); // Rehydrate chart buttons after loading history
             userInput.focus();
         });
     </script>

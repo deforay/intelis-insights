@@ -18,6 +18,18 @@ php ./bin/export-schema.php
 
 This generates `var/schema.json`. Re‑run it whenever the database schema changes.
 
+## Docker / Deploy
+
+1. Copy `.env.example` to `.env` and fill in DB creds + LLM API keys.
+2. Run `./deploy.sh` (auto-installs Docker on Ubuntu if needed, then builds/starts the stack).
+3. Export the schema once the DB is reachable:
+   ```bash
+   docker compose exec app php bin/export-schema.php
+   ```
+4. Visit the app: `http://localhost:${APP_PORT:-8080}/chat` (API: `POST /ask`).
+
+Services: `app` (PHP/Slim), `qdrant` (vector store on 6333), `rag-api` (RAG helper on 8089).
+
 ## Use It
 
 - **Web UI**: open `/chat` and ask a question.

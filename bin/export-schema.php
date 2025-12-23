@@ -12,7 +12,7 @@ $dbName = $app['db_name'] ?? 'vlsm';
 // Configuration for reference tables
 $explicitReferenceTables = [
     // Add specific table names you want to include data for
-    'facility_details	',
+    'facility_details',
     'facility_type',
     's_available_country_forms',
     'instruments',

@@ -5,6 +5,12 @@ declare(strict_types=1);
 return [
     // Domain-specific terminology mapping
     'terminology_mapping' => [
+        'vl|viral load|hiv vl'          => 'form_vl',
+        'eid|infant|early infant|dna'   => 'form_eid',
+        'covid|coronavirus|sars-cov-2'  => 'form_covid19',
+        'tb|tuberculosis|xpert'         => 'form_tb',
+        'cd4'                           => 'form_cd4',
+        'lab name|testing lab'          => 'facility_details.facility_name',
         'sample code|sample codes|sample id' => 'sample_code',
         'facility name|lab name|clinic name' => 'facility_name',
         'result|test result|test outcome' => 'result',
@@ -70,6 +76,7 @@ return [
     'test_type_logic' => [
         'vl' => [
             'table' => 'form_vl',
+            'lab_id_col' => 'lab_id',
             'primary_result_column' => 'result_value_absolute',
             'text_result_column' => 'result',
             'category_column' => 'vl_result_category',
@@ -77,6 +84,7 @@ return [
             'date_collected_column' => 'sample_collection_date',
             'sample_id_column' => 'sample_code',
             'default_description' => 'Viral Load tests for HIV monitoring',
+            'display_lab_name' => 'facility_details.facility_name',
             'common_groupings' => [
                 'by_suppression_status' => 'vl_result_category',
                 'by_facility' => 'facility_id',
@@ -86,18 +94,38 @@ return [
         ],
         'covid19' => [
             'table' => 'form_covid19',
+            'lab_id_col' => 'lab_id',
             'primary_result_column' => 'result',
             'date_tested_column' => 'sample_tested_datetime',
             'sample_id_column' => 'sample_code',
-            'default_description' => 'COVID-19 diagnostic tests'
+            'default_description' => 'COVID-19 diagnostic tests',
+            'display_lab_name' => 'facility_details.facility_name',
         ],
         'eid' => [
             'table' => 'form_eid',
+            'lab_id_col' => 'lab_id',
             'primary_result_column' => 'result',
             'date_tested_column' => 'sample_tested_datetime',
             'sample_id_column' => 'sample_code',
-            'default_description' => 'Early Infant Diagnosis or EID for HIV'
-        ]
+            'default_description' => 'Early Infant Diagnosis or EID for HIV',
+            'display_lab_name' => 'facility_details.facility_name',
+        ],
+        // Tuberculosis
+        'tb' => [
+            'table' => 'form_tb',
+            'lab_id_col' => 'lab_id',
+            'date_tested_col' => 'sample_tested_datetime',
+            'date_tested_column' => 'sample_collection_date',
+            'display_lab_name' => 'facility_details.facility_name',
+        ],
+        // CD4
+        'cd4' => [
+            'table' => 'form_cd4',
+            'lab_id_col' => 'lab_id',
+            'date_tested_column' => 'sample_tested_datetime',
+            'date_collected_col' => 'sample_collection_date',
+            'display_lab_name' => 'facility_details.facility_name',
+        ],
     ],
 
     // Column semantics and descriptions
@@ -114,7 +142,7 @@ return [
             'date_of_initiation_of_current_regimen' => 'Date patient started current ART regimen',
             'vl_sample_id' => 'Internal database ID - avoid in user queries',
             'facility_id' => 'Links to facility_details table. The requesting facility/clinic which collected the sample. Never show the facility_id directly, always join to facility_details and show facility_name or facility_code',
-            'lab_id' => 'Links to facility_details table. The testing laboratory where sample was processed/tested. Never show the lab_id directly, always join to facility_details and show facility_name or facility_code',
+            'lab_id' => 'JOIN with facility_details.facility_id. The testing laboratory where sample was processed/tested. Never show the lab_id directly, always join to facility_details and show facility_name or facility_code',
             'result_value_absolute' => 'Numeric VL count for comparisons (copies/mL). Use for threshold-based filtering',
             'result' => 'Text result (number or text like "Not Detected"). Rarely used for filtering unless specific text matching needed',
             'vl_result_category' => 'Clinical categorization: "suppressed" or "not suppressed". Preferred for clinical queries. Not to be used for joins.',
@@ -141,16 +169,16 @@ return [
             'instrument_id' => 'Testing machine/analyzer/instrument identifier. Links to instrument_machines table or instruments table. Never return instrument_id, always make sure you return the instrument_machines.config_machine_name or instruments.machine_name',
             'vl_test_platform' => 'Testing machine/analyzer/instrument name. DO NOT USE THIS FOR JOINS. Always join on instrument_id to get the machine name. Only use this column as fallback to show name if instrument_id join not possible',
         ],
-        
+
         'facility_details' => [
             'facility_id' => 'Primary facility identifier',
             'facility_name' => 'Facility/clinic/lab name',
             'facility_code' => 'Facility code identifier - prefer over facility_name for identification',
-            'facility_state_id' => 'State/Province. Links to geographical_divisions where geo_id = facility_state_id',
-            'facility_district_id' => 'District/County. Links to geographical_divisions where geo_id = facility_district_id AND geo_parent = facility_state_id',
+            'facility_state_id' => 'State|Province. Links to geographical_divisions where geographical_divisions.geo_id = facility_details.facility_state_id',
+            'facility_district_id' => 'District|County. Links to geographical_divisions where geographical_divisions.geo_id = facility_details.facility_district_id',
             'facility_type' => 'Type: 1=collection site/clinic, 2=testing lab',
         ],
-        
+
         'user_details' => [
             'user_id' => 'Primary user identifier',
             'user_name' => 'System username',
@@ -158,7 +186,7 @@ return [
             'last_name' => 'User last name',
             'role_id' => 'User role. Links to roles table'
         ],
-        
+
         'batch_details' => [
             'batch_id' => 'Primary batch identifier',
             'batch_code' => 'Human-readable batch code',
@@ -175,13 +203,13 @@ return [
             'pattern' => 'SELECT category_column, COUNT(*) as count FROM table WHERE conditions GROUP BY category_column',
             'example' => 'SELECT vl_result_category, COUNT(*) as test_count FROM form_vl WHERE sample_tested_datetime >= DATE_SUB(NOW(), INTERVAL 6 MONTH) GROUP BY vl_result_category'
         ],
-        
+
         'temporal_trends' => [
             'description' => 'Analyzing trends over time',
             'pattern' => 'SELECT DATE_FORMAT(date_column, "%Y-%m") as month, COUNT(*) as count FROM table GROUP BY month ORDER BY month',
             'example' => 'SELECT DATE_FORMAT(sample_tested_datetime, "%Y-%m") as test_month, COUNT(*) as monthly_tests FROM form_vl GROUP BY test_month ORDER BY test_month'
         ],
-        
+
         'facility_comparisons' => [
             'description' => 'Comparing metrics across facilities',
             'pattern' => 'SELECT f.facility_name, COUNT(t.*) as metric FROM table t JOIN facility_details f ON t.facility_id = f.facility_id GROUP BY f.facility_id',
@@ -189,14 +217,65 @@ return [
         ]
     ],
 
+    'generic_patterns' => [
+        // Lab breakdown patterns
+        'break down by lab|group by lab|by testing lab|by laboratory' => [
+            'pattern' => 'GROUP BY {table}.lab_id',
+            'join_required' => 'JOIN facility_details fd ON {table}.lab_id = fd.facility_id',
+            'select_addition' => 'fd.facility_name AS lab_name',
+            'description' => 'Group results by testing laboratory',
+            'applies_to_tables' => ['form_vl', 'form_eid', 'form_cd4', 'form_tb', 'form_hepatitis', 'form_covid19', 'form_generic_tests']
+        ],
+
+        // Facility breakdown patterns  
+        'break down by facility|group by clinic|by requesting facility|by collection site' => [
+            'pattern' => 'GROUP BY {table}.facility_id',
+            'join_required' => 'JOIN facility_details fd ON {table}.facility_id = fd.facility_id',
+            'select_addition' => 'fd.facility_name AS facility_name',
+            'description' => 'Group results by requesting facility/clinic',
+            'applies_to_tables' => ['form_vl', 'form_eid', 'form_cd4', 'form_tb', 'form_hepatitis', 'form_covid19', 'form_generic_tests']
+        ],
+
+        // Temporal patterns
+        'by month|monthly|over time|monthly breakdown|by time' => [
+            'pattern' => 'GROUP BY DATE_FORMAT({table}.sample_tested_datetime, "%Y-%m")',
+            'select_addition' => 'DATE_FORMAT({table}.sample_tested_datetime, "%Y-%m") AS test_month',
+            'description' => 'Group results by month',
+            'applies_to_tables' => ['form_vl', 'form_eid', 'form_cd4', 'form_tb', 'form_hepatitis', 'form_covid19', 'form_generic_tests']
+        ],
+
+        // Result breakdown patterns (test-specific)
+        'by result|by outcome|breakdown by result' => [
+            'pattern' => 'GROUP BY {table}.result',
+            'description' => 'Group by test result/outcome',
+            'applies_to_tables' => ['form_eid', 'form_cd4', 'form_tb', 'form_hepatitis', 'form_covid19', 'form_generic_tests']
+        ],
+
+        // VL-specific patterns
+        'by suppression|suppressed vs not suppressed|by vl category' => [
+            'pattern' => 'GROUP BY {table}.vl_result_category',
+            'description' => 'Group VL tests by suppression status',
+            'applies_to_tables' => ['form_vl']
+        ],
+
+        // Gender patterns
+        'by gender|by sex|male vs female' => [
+            'pattern' => 'GROUP BY {table}.patient_gender',
+            'description' => 'Group by patient gender/sex',
+            'applies_to_tables' => ['form_vl', 'form_eid', 'form_cd4', 'form_tb', 'form_hepatitis', 'form_covid19', 'form_generic_tests']
+        ]
+    ],
+
     // Validation rules for field combinations
     'field_validation' => [
         'required_joins' => [
+            'by_lab' => '{t}.lab_id = facility_details.id',
+            'lab_id' => '{t}.lab_id = facility_details.id',
             'facility_name' => 'Must JOIN facility_details table when selecting facility names',
             'user_names' => 'Must JOIN user_details table when selecting user information',
-            'geographical_info' => 'Must JOIN geographical_divisions table for state/district names'
+            'geographical_info' => 'Must JOIN geographical_divisions table for state/district names',
         ],
-        
+
         'recommended_filters' => [
             'vl_queries' => [
                 'exclude_rejected' => 'IFNULL(is_sample_rejected, "no") = "no"',
