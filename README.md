@@ -21,7 +21,8 @@ This generates `var/schema.json`. Re‑run it whenever the database schema chang
 ## Docker / Deploy
 
 1. Copy `.env.example` to `.env` and fill in DB creds + LLM API keys.
-2. Run `./deploy.sh` (auto-installs Docker on Ubuntu if needed, then builds/starts the stack).
+2. Optional HTTPS + domain: set `ENABLE_TRAEFIK=true`, set `APP_DOMAIN` to your domain, set `TRAEFIK_ACME_EMAIL`, and point DNS A/AAAA to this host (ports 80/443 must be reachable for Let’s Encrypt).
+3. Run `./deploy.sh` (auto-installs Docker on Ubuntu if needed, then builds/starts the stack).
 3. Export the schema once the DB is reachable:
    ```bash
    docker compose exec app php bin/export-schema.php

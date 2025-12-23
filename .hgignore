@@ -48,6 +48,8 @@ dist/
 .env
 .env.local
 .env.production
+# Traefik ACME storage
+traefik_data/
 
 # RAG/Qdrant generated data
 qdrant_storage/**

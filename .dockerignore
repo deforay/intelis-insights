@@ -4,6 +4,7 @@
 /vendor
 /var/cache
 /qdrant_storage
+/traefik_data
 /rag-api/__pycache__
 /rag-api/.venv
 /rag-api/.mypy_cache
