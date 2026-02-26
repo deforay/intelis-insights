@@ -32,7 +32,7 @@ Governed analytics platform for the [Intelis](https://github.com/deforay) Labora
 ### 1. Clone & install dependencies
 
 ```bash
-git clone <repo-url> && cd intelis-insights
+git clone https://github.com/deforay/intelis-insights.git && cd intelis-insights
 composer install
 ```
 

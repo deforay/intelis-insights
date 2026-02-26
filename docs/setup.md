@@ -6,12 +6,12 @@
 - Composer
 - MySQL / MariaDB
 - Docker & Docker Compose (for Qdrant + RAG API)
-- LLM Sidecar running at `http://127.0.0.1:3100` (see [llm-sidecar](../README.md))
+- LLM Sidecar running at `http://127.0.0.1:3100`
 
 ## 1. Clone & install dependencies
 
 ```bash
-git clone <repo-url> intelis-insights
+git clone https://github.com/deforay/intelis-insights.git
 cd intelis-insights
 composer install
 ```
