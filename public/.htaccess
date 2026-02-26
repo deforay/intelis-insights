@@ -1,0 +1,23 @@
+RewriteEngine On
+
+# --- Static files: serve directly if they exist ---
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# --- Named page routes ---
+RewriteRule ^login/?$    login.php [L]
+RewriteRule ^app/?$      app.php [L]
+RewriteRule ^chat/?$     chat.php [L]
+
+# --- API and status routes go to Slim (index.php) ---
+RewriteRule ^api/         index.php [QSA,L]
+RewriteRule ^status/?$    index.php [QSA,L]
+
+# --- Root landing page ---
+RewriteRule ^$           landing.php [L]
+
+# --- Fallback: everything else to Slim API ---
+RewriteRule ^            index.php [QSA,L]
