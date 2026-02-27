@@ -835,6 +835,66 @@
             </div>
           </div>
 
+          <!-- API Keys -->
+          <div class="settings-section mb-6">
+            <h3 class="text-sm font-semibold uppercase tracking-wide text-[var(--color-text-muted)] mb-2">API Keys</h3>
+            <p class="text-xs text-[var(--color-text-muted)] mb-3">
+              Configure API keys for LLM providers. Keys are stored securely and pushed to the inference gateway.
+            </p>
+
+            <div x-show="apiKeysLoading" class="text-sm text-[var(--color-text-muted)] py-4 text-center">
+              Loading API key configuration...
+            </div>
+
+            <div x-show="!apiKeysLoading">
+              <template x-for="provider in apiKeyProviders" :key="provider.id">
+                <div class="settings-row">
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                      <p class="text-sm font-medium" x-text="provider.name"></p>
+                      <span x-show="apiKeys[provider.id]?.configured"
+                        class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                        Active
+                      </span>
+                      <span x-show="!apiKeys[provider.id]?.configured"
+                        class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500">
+                        Not configured
+                      </span>
+                    </div>
+                    <p class="text-xs text-[var(--color-text-muted)] mt-0.5" x-text="provider.hint"></p>
+                    <p x-show="apiKeys[provider.id]?.configured && !apiKeys[provider.id]?.value"
+                      class="text-xs text-[var(--color-text-muted)] mt-1 font-mono"
+                      x-text="apiKeys[provider.id]?.masked">
+                    </p>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <input type="password"
+                      :placeholder="apiKeys[provider.id]?.configured ? 'Enter new key to replace' : provider.placeholder"
+                      x-model="apiKeys[provider.id].value"
+                      class="text-sm bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-3 py-1.5 outline-none focus:border-accent transition w-[260px] font-mono"
+                    />
+                    <button x-show="apiKeys[provider.id]?.configured"
+                      @click="removeApiKey(provider.id)"
+                      class="text-xs text-red-500 hover:text-red-600 transition p-1"
+                      title="Remove key">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </template>
+
+              <div class="flex justify-end mt-4">
+                <button @click="saveApiKeys()" class="btn-primary text-sm !py-2 !px-5"
+                  :disabled="apiKeysSaving">
+                  <span x-show="!apiKeysSaving">Save API Keys</span>
+                  <span x-show="apiKeysSaving">Saving...</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
           <!-- AI Models -->
           <div class="settings-section mb-6">
             <h3 class="text-sm font-semibold uppercase tracking-wide text-[var(--color-text-muted)] mb-2">AI Models
@@ -961,6 +1021,7 @@
               border border-[var(--color-border)] bg-[var(--color-surface)]" :class="{
          'text-green-600 dark:text-green-400': _toast?.type === 'success',
          'text-red-600 dark:text-red-400': _toast?.type === 'error',
+         'text-amber-600 dark:text-amber-400': _toast?.type === 'warning',
        }" x-text="_toast?.msg">
   </div>
 

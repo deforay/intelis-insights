@@ -40,7 +40,7 @@ DOCKER_DEFAULT_PLATFORM=linux/amd64 make up
 cp .env.example .env
 ```
 
-Then edit `.env` to add at least one LLM API key.
+Then add at least one LLM API key via **Settings → API Keys** in the browser, or edit `.env` directly.
 
 ## Service Health Issues
 
@@ -172,7 +172,7 @@ Common ports used by Intelis Insights:
 
 **Possible causes:**
 
-1. **Invalid API key** — Double-check the key in `.env`. Make sure there are no extra spaces.
+1. **Invalid API key** — Double-check the key in **Settings → API Keys** (or `.env`). Make sure there are no extra spaces.
 2. **Wrong provider** — If you set `LLM_DEFAULT_MODEL=sonnet` but only have an OpenAI key, it won't work. Either change the model or add an Anthropic key.
 3. **Expired key** — Check your provider dashboard for key status.
 
@@ -182,6 +182,22 @@ Common ports used by Intelis Insights:
 curl http://localhost:3100/v1/models \
   -H "Authorization: Bearer $LLM_SIDECAR_SECRET"
 ```
+
+---
+
+### Settings page says "Keys saved" but chat still fails
+
+**Cause:** The keys were saved to the database but the sidecar didn't receive them (e.g., the sidecar was restarting or unreachable at the time).
+
+**Fix:** Open **Settings → API Keys** and click **Save** again. The app re-pushes all stored keys to the sidecar on every save and every page load. If the sidecar is healthy, the keys will take effect immediately.
+
+You can verify the sidecar received the keys:
+
+```bash
+curl http://localhost:3100/health
+```
+
+Check the `providers` object — each configured provider should show `true`.
 
 ---
 

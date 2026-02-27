@@ -22,7 +22,7 @@ Run `make status` (Docker) or check each service manually:
 
 ## Chat (Requires InteLIS Data + API Key)
 
-If you have both InteLIS data imported and an LLM API key configured:
+If you have both InteLIS data imported and an LLM API key configured (via **Settings → API Keys** or `.env`):
 
 ```bash
 curl -X POST http://localhost:8080/api/v1/chat/ask \
@@ -52,6 +52,6 @@ Expected: a JSON response with matching snippets about VL suppression thresholds
 | Database shows "not connected" | MySQL not ready or wrong credentials | Check `DB_PASSWORD` in `.env` |
 | RAG API shows "not ready" | Downloading embedding model (first run) | Wait up to 60 seconds |
 | LLM Sidecar shows "not ready" | Missing `llm-sidecar/` files | Run `git submodule update --init --recursive` |
-| Chat returns an error | No API key or no InteLIS data | Check `.env` for API keys; see [Connecting InteLIS Data](../guides/connecting-intelis-data.md) |
+| Chat returns an error | No API key or no InteLIS data | Add a key in **Settings → API Keys** (or check `.env`); see [Connecting InteLIS Data](../guides/connecting-intelis-data.md) |
 
 For more detailed solutions, see [Troubleshooting](../troubleshooting.md).

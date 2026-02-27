@@ -33,10 +33,13 @@ DB_PORT=3306
 DB_NAME=intelis_insights
 DB_USER=root
 DB_PASSWORD=your-password
-
-# Add at least one LLM API key
-ANTHROPIC_API_KEY=sk-ant-your-key-here
 ```
+
+!!! tip "API keys can be added later via the Settings page"
+    Once the app is running, go to **Settings → API Keys** to add keys for Anthropic, OpenAI, DeepSeek, Google, and Groq — no restart required. You can also set them in `.env` if you prefer:
+    ```bash
+    ANTHROPIC_API_KEY=sk-ant-your-key-here
+    ```
 
 See [Environment Variables](../guides/environment-variables.md) for the full list.
 

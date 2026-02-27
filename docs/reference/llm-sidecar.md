@@ -76,7 +76,10 @@ The sidecar is configured via environment variables. In Docker, these are passed
 | `LLM_DEFAULT_MODEL` | `sonnet` | Default model alias |
 | `ALLOW_INSECURE_NO_AUTH` | `true` | Skip auth in development |
 
-Provider API keys are also passed through:
+Provider API keys can be set in two ways:
+
+1. **Settings page (recommended)** — Go to **Settings → API Keys** in the browser. Keys are stored in the database and pushed to the sidecar at runtime via `POST /v1/config/keys`. No restart required.
+2. **Environment variables** — Set in `.env` (passed through `docker-compose.yml`). Requires a container restart to take effect.
 
 | Variable | Provider |
 |----------|---------|
@@ -85,6 +88,8 @@ Provider API keys are also passed through:
 | `DEEPSEEK_API_KEY` | DeepSeek |
 | `GOOGLE_GENERATIVE_AI_API_KEY` | Google (Gemini) |
 | `GROQ_API_KEY` | Groq |
+
+Keys set via the Settings page take precedence — they overwrite the sidecar's in-memory keys on each save and on each Settings page load.
 
 See the full [LLM Sidecar README](https://github.com/deforay/llm-sidecar) for all configuration options, usage examples, and deployment guides.
 

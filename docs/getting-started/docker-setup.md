@@ -23,16 +23,20 @@ cd intelis-insights
 cp .env.example .env
 ```
 
-Open `.env` in your editor and add at least one LLM API key:
+Open `.env` in your editor and fill in any values you need to change. Everything has sensible defaults for local development.
 
-```bash
-# Pick one (or more):
-ANTHROPIC_API_KEY=sk-ant-your-key-here
-OPENAI_API_KEY=sk-your-key-here
-DEEPSEEK_API_KEY=your-key-here
-```
+!!! tip "API keys can be added later via the Settings page"
+    You don't need to put LLM API keys in `.env`. Once the app is running, go to **Settings → API Keys** in the browser to add or change keys for Anthropic, OpenAI, DeepSeek, Google, and Groq. Keys entered in the Settings page are stored in the database and pushed to the sidecar at runtime — no restart required.
 
-Everything else has sensible defaults for local development. See [Environment Variables](../guides/environment-variables.md) for the full list.
+    If you prefer `.env`, that still works:
+    ```bash
+    # Pick one (or more):
+    ANTHROPIC_API_KEY=sk-ant-your-key-here
+    OPENAI_API_KEY=sk-your-key-here
+    DEEPSEEK_API_KEY=your-key-here
+    ```
+
+See [Environment Variables](../guides/environment-variables.md) for the full list.
 
 ## 3. Start All Services
 

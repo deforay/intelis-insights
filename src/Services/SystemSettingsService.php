@@ -79,6 +79,78 @@ final class SystemSettingsService
         }
     }
 
+    // ── API Keys ──────────────────────────────────────────────────────
+
+    /** Supported LLM provider identifiers. */
+    private const API_KEY_PROVIDERS = ['anthropic', 'openai', 'google', 'groq', 'deepseek'];
+
+    /**
+     * Get stored API key status with masked preview (e.g. "sk-ant-a0******").
+     * Shows only a safe prefix — enough to identify the key, not enough to use it.
+     *
+     * @return array<string, array{configured: bool, masked: string}>
+     */
+    public function getApiKeys(): array
+    {
+        $stored = $this->get('llm.api_keys', []);
+        $result = [];
+
+        foreach (self::API_KEY_PROVIDERS as $provider) {
+            $key = $stored[$provider] ?? '';
+            $result[$provider] = [
+                'configured' => $key !== '',
+                'masked'     => $key !== '' ? substr($key, 0, min(8, (int) floor(strlen($key) / 3))) . '******' : '',
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Get raw (unmasked) API keys for pushing to the sidecar.
+     *
+     * @return array<string, string>
+     */
+    public function getRawApiKeys(): array
+    {
+        $stored = $this->get('llm.api_keys', []);
+        $result = [];
+
+        foreach (self::API_KEY_PROVIDERS as $provider) {
+            $key = $stored[$provider] ?? '';
+            if ($key !== '') {
+                $result[$provider] = $key;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Save API keys. Only updates keys present in the input.
+     * Empty-string values remove the key for that provider.
+     *
+     * @param array<string, string> $keys  provider => api_key
+     */
+    public function setApiKeys(array $keys): void
+    {
+        $current = $this->get('llm.api_keys', []);
+
+        foreach (self::API_KEY_PROVIDERS as $provider) {
+            if (!array_key_exists($provider, $keys)) {
+                continue;
+            }
+            $value = trim($keys[$provider]);
+            if ($value === '') {
+                unset($current[$provider]);
+            } else {
+                $current[$provider] = $value;
+            }
+        }
+
+        $this->set('llm.api_keys', empty($current) ? null : $current);
+    }
+
     /**
      * Resolve the model for a given pipeline step.
      *

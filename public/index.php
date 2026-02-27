@@ -137,6 +137,8 @@ $app->post('/api/v1/chart/suggest', [$chatController, 'suggestChart']);
 // ── Settings API ──────────────────────────────────────────────────
 $app->get('/api/v1/settings/llm', [$settingsController, 'getLlm']);
 $app->post('/api/v1/settings/llm', [$settingsController, 'saveLlm']);
+$app->get('/api/v1/settings/api-keys', [$settingsController, 'getApiKeys']);
+$app->post('/api/v1/settings/api-keys', [$settingsController, 'saveApiKeys']);
 
 // ── Reports API ────────────────────────────────────────────────────
 $app->get('/api/v1/reports', [$reportController, 'list']);

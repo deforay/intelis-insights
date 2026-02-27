@@ -274,6 +274,24 @@ document.addEventListener('alpine:init', () => {
     llmModelsLoading: false,
     llmSettingsSaving: false,
 
+    // API key settings (persisted server-side)
+    apiKeyProviders: [
+      { id: 'anthropic', name: 'Anthropic',  placeholder: 'sk-ant-...',  hint: 'Claude models (Sonnet, Opus, Haiku)' },
+      { id: 'openai',    name: 'OpenAI',     placeholder: 'sk-...',      hint: 'GPT-4o, embeddings, DALL-E' },
+      { id: 'google',    name: 'Google',     placeholder: 'AI...',       hint: 'Gemini Pro, Gemini Flash' },
+      { id: 'groq',      name: 'Groq',       placeholder: 'gsk_...',     hint: 'Fast Llama inference' },
+      { id: 'deepseek',  name: 'DeepSeek',   placeholder: 'sk-...',      hint: 'DeepSeek Chat & Reasoner' },
+    ],
+    apiKeys: {
+      anthropic: { configured: false, masked: '', value: '' },
+      openai:    { configured: false, masked: '', value: '' },
+      google:    { configured: false, masked: '', value: '' },
+      groq:      { configured: false, masked: '', value: '' },
+      deepseek:  { configured: false, masked: '', value: '' },
+    },
+    apiKeysLoading: false,
+    apiKeysSaving: false,
+
     // ---- Lifecycle ----
     init() {
       // Auth check
@@ -327,6 +345,9 @@ document.addEventListener('alpine:init', () => {
 
       // Load AI model settings from backend
       this.fetchLlmSettings();
+
+      // Load API key settings from backend
+      this.fetchApiKeys();
     },
 
     // ---- Dark mode ----
@@ -342,7 +363,20 @@ document.addEventListener('alpine:init', () => {
     },
 
     // ---- Navigation ----
+    hasAnyApiKey() {
+      return Object.values(this.apiKeys).some(k => k.configured);
+    },
+
     navigate(view) {
+      // Gate: chat requires at least one API key
+      if (view === 'chat' && !this.apiKeysLoading && !this.hasAnyApiKey()) {
+        this.currentView = 'settings';
+        this.mobileSidebarOpen = false;
+        window.history.replaceState({}, '', '/settings');
+        this.showToast('Please configure at least one LLM API key to use Chat.', 'warning');
+        return;
+      }
+
       this.currentView = view;
       this.mobileSidebarOpen = false;
       // Update URL without reload
@@ -763,7 +797,8 @@ document.addEventListener('alpine:init', () => {
     },
 
     loadReport(report) {
-      this.currentView = 'chat';
+      this.navigate('chat');
+      if (this.currentView !== 'chat') return; // blocked by API key gate
       this.$nextTick(() => {
         this.question = report.question || report.title || '';
         if (this.question) {
@@ -939,6 +974,109 @@ document.addEventListener('alpine:init', () => {
         this.showToast('Failed to save AI model settings', 'error');
       } finally {
         this.llmSettingsSaving = false;
+      }
+    },
+
+    // ---- API Key Settings ----
+
+    async fetchApiKeys() {
+      this.apiKeysLoading = true;
+      try {
+        const resp = await fetch('/api/v1/settings/api-keys');
+        if (!resp.ok) throw new Error('Failed to load API keys');
+        const data = await resp.json();
+
+        const keys = data.keys || {};
+        for (const provider of Object.keys(this.apiKeys)) {
+          if (keys[provider]) {
+            this.apiKeys[provider].configured = keys[provider].configured;
+            this.apiKeys[provider].masked = keys[provider].masked;
+          }
+          this.apiKeys[provider].value = '';
+        }
+
+        // If user landed on /chat but has no keys, redirect to settings
+        if (this.currentView === 'chat' && !this.hasAnyApiKey()) {
+          this.currentView = 'settings';
+          window.history.replaceState({}, '', '/settings');
+          this.showToast('Please configure at least one LLM API key to use Chat.', 'warning');
+        }
+      } catch (e) {
+        console.error('Failed to load API keys:', e);
+      } finally {
+        this.apiKeysLoading = false;
+      }
+    },
+
+    async saveApiKeys() {
+      this.apiKeysSaving = true;
+      try {
+        const payload = {};
+        let hasChanges = false;
+        for (const [provider, info] of Object.entries(this.apiKeys)) {
+          if (info.value !== '') {
+            payload[provider] = info.value;
+            hasChanges = true;
+          }
+        }
+
+        if (!hasChanges) {
+          this.showToast('No changes to save', 'error');
+          this.apiKeysSaving = false;
+          return;
+        }
+
+        const resp = await fetch('/api/v1/settings/api-keys', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!resp.ok) throw new Error('Save failed');
+        const data = await resp.json();
+
+        const keys = data.keys || {};
+        for (const provider of Object.keys(this.apiKeys)) {
+          if (keys[provider]) {
+            this.apiKeys[provider].configured = keys[provider].configured;
+            this.apiKeys[provider].masked = keys[provider].masked;
+          }
+          this.apiKeys[provider].value = '';
+        }
+
+        this.showToast('API keys saved and activated!');
+
+        // Refresh available models since new providers may be available
+        this.fetchLlmSettings();
+      } catch (e) {
+        console.error('Failed to save API keys:', e);
+        this.showToast('Failed to save API keys', 'error');
+      } finally {
+        this.apiKeysSaving = false;
+      }
+    },
+
+    async removeApiKey(provider) {
+      try {
+        const resp = await fetch('/api/v1/settings/api-keys', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ [provider]: '' }),
+        });
+        const data = await resp.json();
+
+        const keys = data.keys || {};
+        if (keys[provider]) {
+          this.apiKeys[provider].configured = keys[provider].configured;
+          this.apiKeys[provider].masked = keys[provider].masked;
+        }
+        this.apiKeys[provider].value = '';
+
+        this.showToast(`API key removed`);
+        this.fetchLlmSettings();
+      } catch (e) {
+        console.error('Failed to remove API key:', e);
+        this.showToast('Failed to remove API key', 'error');
       }
     },
   }));

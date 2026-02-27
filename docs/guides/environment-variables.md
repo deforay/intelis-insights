@@ -46,6 +46,9 @@ At least one key is required for the chat features to work. See [Prerequisites](
 | `GOOGLE_GENERATIVE_AI_API_KEY` | Google (Gemini) API key |
 | `GROQ_API_KEY` | Groq API key |
 
+!!! tip "Prefer the Settings page for API keys"
+    Instead of editing `.env`, you can manage API keys from **Settings → API Keys** in the browser. Keys entered there are stored in the database and pushed to the LLM sidecar at runtime — no service restart required. This is the recommended approach after initial setup, especially in production where restarting containers to change a key is inconvenient.
+
 ## LLM Sidecar
 
 | Variable | Default | Description |
