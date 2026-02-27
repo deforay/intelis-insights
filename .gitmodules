@@ -1,0 +1,3 @@
+[submodule "llm-sidecar"]
+	path = llm-sidecar
+	url = git@github.com:deforay/llm-sidecar.git

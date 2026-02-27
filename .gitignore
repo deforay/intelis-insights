@@ -9,6 +9,9 @@
 .DS_Store
 Thumbs.db
 
+# Specific files
+create_ai_deck.js
+
 # IDE / Editor
 .vscode/
 .idea/
@@ -35,6 +38,10 @@ Thumbs.db
 ~$*.xlsx
 ~$*.docx
 *.pptx
+
+# Docker persistent data
+docker/data/
+mysql_data/
 
 # Claude Code
 .claude/

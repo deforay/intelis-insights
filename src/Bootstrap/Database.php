@@ -49,7 +49,7 @@ final class Database
         if (!empty($queryCfg)) {
             $capsule->addConnection([
                 'driver'    => 'mysql',
-                'host'      => $queryCfg['host'] ?? $cfg['host'] ?? (getenv('DB_HOST') ?: '127.0.0.1'),
+                'host'      => $queryCfg['host'] ?? (getenv('QUERY_DB_HOST') ?: ($cfg['host'] ?? (getenv('DB_HOST') ?: '127.0.0.1'))),
                 'port'      => $queryCfg['port'] ?? $cfg['port'] ?? (getenv('DB_PORT') ?: '3306'),
                 'database'  => $queryCfg['database'] ?? (getenv('QUERY_DB_NAME') ?: 'vlsm'),
                 'username'  => $queryCfg['username'] ?? $cfg['username'] ?? (getenv('DB_USER') ?: 'root'),

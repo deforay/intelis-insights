@@ -1,6 +1,6 @@
 # Intelis Insights
 
-Governed analytics platform for the [Intelis](https://github.com/deforay) Laboratory Information System. Transforms laboratory data into actionable program intelligence while maintaining strict privacy controls.
+Governed analytics platform for the [InteLIS](https://github.com/deforay) Laboratory Information System. Transforms laboratory data into actionable program intelligence while maintaining strict privacy controls.
 
 ## Features
 
@@ -12,76 +12,75 @@ Governed analytics platform for the [Intelis](https://github.com/deforay) Labora
 ## Tech Stack
 
 | Layer | Technology |
-|-------|-----------|
-| Backend | PHP 8.2+, Slim 4, Eloquent ORM |
+| ----- | ---------- |
+| Backend | PHP 8.4+, Slim 4, Eloquent ORM |
 | Frontend | Tailwind CSS, Alpine.js, Chart.js |
-| Database | MySQL (app + query databases) |
+| Database | MySQL (app + InteLIS query databases) |
 | RAG | Python FastAPI sidecar, Qdrant vector DB |
-| LLM | Configurable via LLM sidecar (Claude, etc.) |
+| LLM | Configurable via LLM sidecar (Claude, DeepSeek, etc.) |
 | Migrations | Phinx |
 
-## Prerequisites
+## Quick Start (Docker)
 
-- PHP 8.2+
-- Composer
-- MySQL 8.0+
-- Docker & Docker Compose (for Qdrant + RAG API)
-
-## Getting Started
-
-### 1. Clone & install dependencies
+Requires only **Docker** and **Git**.
 
 ```bash
-git clone https://github.com/deforay/intelis-insights.git && cd intelis-insights
-composer install
+git clone --recurse-submodules https://github.com/deforay/intelis-insights.git
+cd intelis-insights
+cp .env.example .env    # add at least one LLM API key
+make up                 # starts all services
 ```
 
-### 2. Configure environment
+Open <http://localhost:8080> once services are healthy (`make status` to check).
+
+### Connect the InteLIS Database
+
+LLM query features require the InteLIS database. Import a dump or connect to an external instance:
 
 ```bash
-cp .env.example .env
-# Edit .env with your database credentials and sidecar URLs
+# Import a dump into the Docker MySQL container
+make db-import FILE=path/to/intelis-dump.sql
+make rag-refresh
+
+# — or connect to an external instance via .env —
+# QUERY_DB_HOST=lab-db-server.example.com
+# QUERY_DB_NAME=vlsm
+# QUERY_DB_USER=readonly_user
+# QUERY_DB_PASSWORD=readonly_pass
 ```
 
-### 3. Set up the database
-
-```bash
-mysql -u root -e "CREATE DATABASE intelis_insights;"
-mysql -u root intelis_insights < database/001_create_schema.sql
-mysql -u root intelis_insights < database/002_create_vl_aggregate_tables.sql
-mysql -u root intelis_insights < database/003_refresh_vl_aggregates.sql
-mysql -u root intelis_insights < database/004_system_tables.sql
-mysql -u root intelis_insights < database/seed.sql
-```
-
-### 4. Start RAG services (Qdrant + RAG API)
-
-```bash
-docker compose up -d
-```
-
-### 5. Run the app
-
-```bash
-composer start
-# → http://localhost:8080
-```
+See the [Setup Guide](docs/setup.md) for full instructions including manual (non-Docker) setup.
 
 ## Project Structure
 
 ```
 ├── config/             # App, DB, and business-rule configuration
 ├── database/           # SQL schema & seed files
+├── docker/             # Docker support files (nginx, init scripts)
 ├── public/             # Web root (index.php, assets, views)
 ├── rag-api/            # Python RAG sidecar (FastAPI + Qdrant)
+├── llm-sidecar/        # LLM gateway (git submodule)
 ├── src/
 │   ├── Bootstrap/      # Database bootstrapping
 │   ├── Controllers/    # Chat & Report controllers
 │   ├── Models/         # Eloquent models
 │   └── Services/       # LLM, RAG, Query, Chart services
-├── docker-compose.yml  # Qdrant + RAG API containers
+├── docker-compose.yml  # Full stack (MySQL, Qdrant, RAG, LLM, App)
+├── Makefile            # Developer convenience commands
 ├── composer.json
 └── phinx.php           # Migration config
+```
+
+## Useful Commands
+
+```bash
+make help               # list all targets
+make status             # check service health
+make logs               # follow all service logs
+make shell              # open shell in PHP container
+make db-shell           # open MySQL CLI
+make rag-refresh        # re-seed RAG index
+make clean              # remove containers + volumes
 ```
 
 ## License

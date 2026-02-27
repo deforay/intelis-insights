@@ -1,0 +1,32 @@
+# ==============================================================
+# Production overrides
+# ==============================================================
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#   — or —
+#   make prod
+# ==============================================================
+
+services:
+  app:
+    build:
+      target: production
+    volumes: []
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+
+  llm-sidecar:
+    environment:
+      ALLOW_INSECURE_NO_AUTH: "false"
+      NODE_ENV: production
+
+  # Don't expose internal services in production
+  mysql:
+    ports: []
+
+  qdrant:
+    ports: []
+
+  rag-api:
+    ports: []

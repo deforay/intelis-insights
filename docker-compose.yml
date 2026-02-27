@@ -1,12 +1,61 @@
+# ==============================================================
+# Intelis Insights — Full Stack
+# ==============================================================
+# Usage:
+#   cp .env.example .env      # fill in at least one LLM API key
+#   docker compose up -d      # start all services
+#   docker compose logs -f    # follow logs
+#
+# For production, layer the override:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# ==============================================================
+
 services:
+
+  # ── MySQL 8.0 ───────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: intelis-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-intelis_dev}
+      MYSQL_DATABASE: ${DB_NAME:-intelis_insights}
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      # Auto-init scripts (run on first start when volume is empty)
+      - ./database/001_create_schema.sql:/docker-entrypoint-initdb.d/001.sql:ro
+      - ./database/002_create_vl_aggregate_tables.sql:/docker-entrypoint-initdb.d/002.sql:ro
+      # 003 uses DELIMITER $$ — needs .sh wrapper for non-interactive mysql
+      - ./docker/003-stored-proc.sh:/docker-entrypoint-initdb.d/003.sh:ro
+      - ./database/003_refresh_vl_aggregates.sql:/sql-init/003_refresh_vl_aggregates.sql:ro
+      - ./database/004_system_tables.sql:/docker-entrypoint-initdb.d/004.sql:ro
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/005.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    restart: unless-stopped
+
+  # ── Qdrant Vector Database ──────────────────────────────────
   qdrant:
     image: qdrant/qdrant:latest
     container_name: intelis-qdrant
     ports:
       - "6333:6333"
     volumes:
-      - ./qdrant_storage:/qdrant/storage
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:6333/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
 
+  # ── RAG API (FastAPI + fastembed) ───────────────────────────
   rag-api:
     build: ./rag-api
     container_name: intelis-rag-api
@@ -15,6 +64,119 @@ services:
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-small-en-v1.5}
     ports:
       - "8089:8089"
+    volumes:
+      - fastembed_cache:/root/.cache/fastembed
     depends_on:
-      - qdrant
-    restart: on-failure
+      qdrant:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8089/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 60s   # fastembed downloads ~200MB model on first run
+    restart: unless-stopped
+
+  # ── LLM Sidecar (Bun/TypeScript) ───────────────────────────
+  llm-sidecar:
+    build: ./llm-sidecar
+    container_name: intelis-llm-sidecar
+    environment:
+      PORT: "3100"
+      API_SECRET: ${LLM_SIDECAR_SECRET:-}
+      ALLOW_INSECURE_NO_AUTH: ${ALLOW_INSECURE_NO_AUTH:-true}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+      DEFAULT_MODEL: ${LLM_DEFAULT_MODEL:-sonnet}
+    ports:
+      - "3100:3100"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3100/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  # ── PHP Application (Slim 4) ────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: intelis-app
+    environment:
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_NAME: ${DB_NAME:-intelis_insights}
+      DB_USER: root
+      DB_PASSWORD: ${DB_PASSWORD:-intelis_dev}
+      QUERY_DB_HOST: ${QUERY_DB_HOST:-mysql}
+      QUERY_DB_NAME: ${QUERY_DB_NAME:-vlsm}
+      QUERY_DB_USER: ${QUERY_DB_USER:-root}
+      QUERY_DB_PASSWORD: ${QUERY_DB_PASSWORD:-${DB_PASSWORD:-intelis_dev}}
+      LLM_SIDECAR_URL: http://llm-sidecar:3100
+      LLM_SIDECAR_SECRET: ${LLM_SIDECAR_SECRET:-}
+      LLM_DEFAULT_MODEL: ${LLM_DEFAULT_MODEL:-sonnet}
+      RAG_BASE_URL: http://rag-api:8089
+      RAG_ENABLED: ${RAG_ENABLED:-true}
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-intelis_insights}
+      APP_ENV: ${APP_ENV:-development}
+      APP_DEBUG: ${APP_DEBUG:-true}
+      APP_TIMEZONE: ${APP_TIMEZONE:-UTC}
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/var/www
+      - /var/www/vendor     # Use container's deps, not host's
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  # ── Init Container (DB check + RAG seeding) ─────────────────
+  init:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: intelis-init
+    entrypoint: ["/var/www/docker/rag-init.sh"]
+    environment:
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_NAME: ${DB_NAME:-intelis_insights}
+      DB_USER: root
+      DB_PASSWORD: ${DB_PASSWORD:-intelis_dev}
+      QUERY_DB_HOST: ${QUERY_DB_HOST:-mysql}
+      QUERY_DB_PORT: ${QUERY_DB_PORT:-3306}
+      QUERY_DB_NAME: ${QUERY_DB_NAME:-vlsm}
+      QUERY_DB_USER: ${QUERY_DB_USER:-root}
+      QUERY_DB_PASSWORD: ${QUERY_DB_PASSWORD:-${DB_PASSWORD:-intelis_dev}}
+      RAG_BASE_URL: http://rag-api:8089
+      FORCE_RAG_REFRESH: ${FORCE_RAG_REFRESH:-0}
+    volumes:
+      - .:/var/www
+      - /var/www/vendor
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rag-api:
+        condition: service_healthy
+    restart: "no"
+
+volumes:
+  mysql_data:
+  qdrant_data:
+  fastembed_cache:
