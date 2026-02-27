@@ -49,7 +49,16 @@ make rag-refresh
 # QUERY_DB_PASSWORD=readonly_pass
 ```
 
-See the [Setup Guide](docs/setup.md) for full instructions including manual (non-Docker) setup.
+See the [full documentation](docs/index.md) for detailed guides, concepts, and troubleshooting.
+
+## Documentation
+
+- [Prerequisites](docs/getting-started/prerequisites.md) — What you need before starting
+- [Docker Setup](docs/getting-started/docker-setup.md) — Step-by-step Docker installation
+- [Manual Setup](docs/getting-started/manual-setup.md) — Running services natively
+- [Architecture](docs/concepts/architecture.md) — How the system works
+- [Glossary](docs/concepts/glossary.md) — Key terms explained
+- [Troubleshooting](docs/troubleshooting.md) — Common problems and fixes
 
 ## Project Structure
 

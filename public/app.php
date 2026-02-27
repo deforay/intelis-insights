@@ -835,6 +835,79 @@
             </div>
           </div>
 
+          <!-- AI Models -->
+          <div class="settings-section mb-6">
+            <h3 class="text-sm font-semibold uppercase tracking-wide text-[var(--color-text-muted)] mb-2">AI Models
+            </h3>
+            <p class="text-xs text-[var(--color-text-muted)] mb-3">
+              Configure which LLM provider and model is used for each pipeline step. Leave as default to inherit.
+            </p>
+
+            <!-- Loading state -->
+            <div x-show="llmModelsLoading" class="text-sm text-[var(--color-text-muted)] py-4 text-center">
+              Loading available models...
+            </div>
+
+            <div x-show="!llmModelsLoading">
+              <!-- Global Default Model -->
+              <div class="settings-row">
+                <div>
+                  <p class="text-sm font-medium">Global Default Model</p>
+                  <p class="text-xs text-[var(--color-text-muted)] mt-0.5">Fallback model for all steps</p>
+                </div>
+                <select @change="llmConfig.default_model = $event.target.value"
+                  x-effect="populateLlmSelect($el, 'Use environment default', llmConfig.default_model)"
+                  class="text-sm bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-3 py-1.5 outline-none focus:border-accent transition min-w-[200px]">
+                </select>
+              </div>
+
+              <!-- Intent Detection -->
+              <div class="settings-row">
+                <div>
+                  <p class="text-sm font-medium">Intent Detection</p>
+                  <p class="text-xs text-[var(--color-text-muted)] mt-0.5">Classifies question type and domain relevance</p>
+                </div>
+                <select @change="llmConfig.step_models.intent_detection = $event.target.value"
+                  x-effect="populateLlmSelect($el, 'Use global default', llmConfig.step_models.intent_detection)"
+                  class="text-sm bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-3 py-1.5 outline-none focus:border-accent transition min-w-[200px]">
+                </select>
+              </div>
+
+              <!-- SQL Generation -->
+              <div class="settings-row">
+                <div>
+                  <p class="text-sm font-medium">SQL Generation</p>
+                  <p class="text-xs text-[var(--color-text-muted)] mt-0.5">Generates MySQL queries from natural language</p>
+                </div>
+                <select @change="llmConfig.step_models.sql_generation = $event.target.value"
+                  x-effect="populateLlmSelect($el, 'Use global default', llmConfig.step_models.sql_generation)"
+                  class="text-sm bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-3 py-1.5 outline-none focus:border-accent transition min-w-[200px]">
+                </select>
+              </div>
+
+              <!-- Chart Suggestion -->
+              <div class="settings-row">
+                <div>
+                  <p class="text-sm font-medium">Chart Suggestion</p>
+                  <p class="text-xs text-[var(--color-text-muted)] mt-0.5">Recommends visualization type and axis config</p>
+                </div>
+                <select @change="llmConfig.step_models.chart_suggestion = $event.target.value"
+                  x-effect="populateLlmSelect($el, 'Use global default', llmConfig.step_models.chart_suggestion)"
+                  class="text-sm bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-3 py-1.5 outline-none focus:border-accent transition min-w-[200px]">
+                </select>
+              </div>
+
+              <!-- Save button -->
+              <div class="flex justify-end mt-4">
+                <button @click="saveLlmSettings()" class="btn-primary text-sm !py-2 !px-5"
+                  :disabled="llmSettingsSaving">
+                  <span x-show="!llmSettingsSaving">Save Model Config</span>
+                  <span x-show="llmSettingsSaving">Saving...</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
           <!-- Notifications -->
           <div class="settings-section mb-6">
             <h3 class="text-sm font-semibold uppercase tracking-wide text-[var(--color-text-muted)] mb-2">Notifications

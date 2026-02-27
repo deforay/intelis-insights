@@ -20,7 +20,7 @@ return [
             'port' => (int) (getenv('DB_PORT') ?: 3306),
             'name' => getenv('DB_NAME') ?: 'intelis_insights',
             'user' => getenv('DB_USER') ?: 'root',
-            'pass' => getenv('DB_PASSWORD') ?: '',
+            'pass' => getenv('DB_PASSWORD') ?: 'zaq12345',
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
         ],

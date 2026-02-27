@@ -55,7 +55,18 @@ PROMPT;
         '/period/i', '/time/i', '/day/i', '/created_at/i', '/updated_at/i',
     ];
 
+    private ?string $modelOverride = null;
+
     public function __construct(private LlmClient $llm) {}
+
+    /**
+     * Set a model override for chart suggestion LLM calls.
+     * Null means "use LlmClient default".
+     */
+    public function setModelOverride(?string $model): void
+    {
+        $this->modelOverride = $model;
+    }
 
     /**
      * Suggest chart types based on query results.
@@ -301,6 +312,7 @@ PROMPT;
                 userPrompt: $userPrompt,
                 schema: self::CHART_SCHEMA,
                 schemaName: 'chart_suggestion',
+                model: $this->modelOverride,
                 temperature: 0.0,
             );
 

@@ -78,10 +78,22 @@ $queryService = new App\Services\QueryService(
 
 $chartService = new App\Services\ChartService($llmClient);
 
+// System settings — per-step LLM model overrides
+$settingsService = new App\Services\SystemSettingsService();
+
+$queryService->setModelOverrides([
+    'intent_detection' => $settingsService->resolveModelForStep('intent_detection'),
+    'sql_generation'   => $settingsService->resolveModelForStep('sql_generation'),
+]);
+$chartService->setModelOverride(
+    $settingsService->resolveModelForStep('chart_suggestion')
+);
+
 // ── Controllers ────────────────────────────────────────────────────
 
-$chatController   = new App\Controllers\ChatController($queryService, $queryDb, $chartService);
-$reportController = new App\Controllers\ReportController();
+$chatController     = new App\Controllers\ChatController($queryService, $queryDb, $chartService);
+$reportController   = new App\Controllers\ReportController();
+$settingsController = new App\Controllers\SettingsController($settingsService, $appCfg['llm']);
 
 // ── Landing page ───────────────────────────────────────────────────
 $app->get('/', function ($request, $response) {
@@ -121,6 +133,10 @@ $app->post('/api/v1/chat/rewind/{index}', [$chatController, 'rewind']);
 
 // ── Chart API ──────────────────────────────────────────────────────
 $app->post('/api/v1/chart/suggest', [$chatController, 'suggestChart']);
+
+// ── Settings API ──────────────────────────────────────────────────
+$app->get('/api/v1/settings/llm', [$settingsController, 'getLlm']);
+$app->post('/api/v1/settings/llm', [$settingsController, 'saveLlm']);
 
 // ── Reports API ────────────────────────────────────────────────────
 $app->get('/api/v1/reports', [$reportController, 'list']);

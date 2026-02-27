@@ -8,9 +8,11 @@ RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]
 
 # --- Named page routes ---
-RewriteRule ^login/?$    login.php [L]
-RewriteRule ^app/?$      app.php [L]
-RewriteRule ^chat/?$     chat.php [L]
+RewriteRule ^login/?$      login.php [L]
+RewriteRule ^app/?$        app.php [L]
+RewriteRule ^chat/?$       app.php [L]
+RewriteRule ^settings/?$   app.php [L]
+RewriteRule ^reports/?$    app.php [L]
 
 # --- API and status routes go to Slim (index.php) ---
 RewriteRule ^api/         index.php [QSA,L]

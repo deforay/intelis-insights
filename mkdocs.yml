@@ -29,6 +29,7 @@ theme:
     - navigation.sections
     - navigation.expand
     - navigation.top
+    - navigation.indexes
     - toc.follow
     - content.tabs.link
   icon:
@@ -36,10 +37,27 @@ theme:
 
 nav:
   - Home: index.md
-  - Setup: setup.md
-  - Query Pipeline: query-pipeline.md
-  - Seeding: seeding.md
-  - API Reference: api-reference.md
+  - Getting Started:
+    - Prerequisites: getting-started/prerequisites.md
+    - Docker Setup: getting-started/docker-setup.md
+    - Manual Setup: getting-started/manual-setup.md
+    - First-Run Checklist: getting-started/first-run-checklist.md
+  - Concepts:
+    - Architecture Overview: concepts/architecture.md
+    - Two Databases: concepts/two-databases.md
+    - RAG & Vector Search: concepts/rag.md
+    - Glossary: concepts/glossary.md
+  - Guides:
+    - Connecting InteLIS Data: guides/connecting-intelis-data.md
+    - RAG Seeding: guides/rag-seeding.md
+    - Makefile Reference: guides/makefile-reference.md
+    - Environment Variables: guides/environment-variables.md
+    - Production Deployment: guides/production-deployment.md
+  - Reference:
+    - API Reference: reference/api.md
+    - Query Pipeline: reference/query-pipeline.md
+    - LLM Sidecar: reference/llm-sidecar.md
+  - Troubleshooting: troubleshooting.md
 
 markdown_extensions:
   - admonition
@@ -55,6 +73,7 @@ markdown_extensions:
   - toc:
       permalink: true
   - attr_list
+  - md_in_html
   - pymdownx.emoji:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg

@@ -33,6 +33,9 @@ final class QueryService
     private ?CacheInterface $cache = null;
     private string $cacheBuster = '0';
 
+    /** @var array<string, ?string> Per-step LLM model overrides (e.g. intent_detection, sql_generation). */
+    private array $modelOverrides = [];
+
     public function __construct(
         array $appCfg,
         array $businessRules,
@@ -54,6 +57,15 @@ final class QueryService
 
         $this->cacheBuster = (string) ($this->appCfg['cache']['buster'] ?? '0');
         $this->cache       = $cache ?? $this->createCacheFromConfig($appCfg);
+    }
+
+    /**
+     * Set per-step model overrides. Keys: intent_detection, sql_generation.
+     * Null values mean "use LlmClient default".
+     */
+    public function setModelOverrides(array $overrides): void
+    {
+        $this->modelOverrides = $overrides;
     }
 
     // ── Cache ────────────────────────────────────────────────────────
@@ -306,7 +318,7 @@ QUESTION: {$query}
 USR;
 
         try {
-            $raw  = $this->llm->chat($system, $user, temperature: 0.0, maxTokens: 300);
+            $raw  = $this->llm->chat($system, $user, model: $this->modelOverrides['intent_detection'] ?? null, temperature: 0.0, maxTokens: 300);
             $resp = $this->extractJson($raw);
 
             if (is_array($resp)) {
@@ -935,7 +947,7 @@ QUESTION: {$query}
 Return ONLY one JSON object: {"s":"<SQL>","ok":true|false,"conf":0..1,"why":"<=120 chars","cit":["<ids>"]}
 TXT;
 
-            $raw = $this->llm->chat($system, $user, temperature: 0.0, maxTokens: 1200);
+            $raw = $this->llm->chat($system, $user, model: $this->modelOverrides['sql_generation'] ?? null, temperature: 0.0, maxTokens: 1200);
             $out = $this->extractJson($raw);
 
             if (!$out || (!array_key_exists('s', $out) && !array_key_exists('sql', $out))) {
@@ -989,7 +1001,7 @@ TXT;
 
         $user = "{$conversationBlock}\n\nUSER QUESTION: {$query}";
 
-        $raw = $this->llm->chat($system, $user, temperature: 0.0, maxTokens: 600);
+        $raw = $this->llm->chat($system, $user, model: $this->modelOverrides['sql_generation'] ?? null, temperature: 0.0, maxTokens: 600);
         $out = $this->extractJson($raw);
 
         if (!$out || !isset($out['sql'])) {

@@ -261,6 +261,19 @@ document.addEventListener('alpine:init', () => {
       compactView: false,
     },
 
+    // AI model settings (persisted server-side)
+    llmConfig: {
+      default_model: '',
+      step_models: {
+        intent_detection: '',
+        sql_generation: '',
+        chart_suggestion: '',
+      },
+    },
+    llmAvailableModels: {},
+    llmModelsLoading: false,
+    llmSettingsSaving: false,
+
     // ---- Lifecycle ----
     init() {
       // Auth check
@@ -290,10 +303,17 @@ document.addEventListener('alpine:init', () => {
       // Session
       this.sessionId = localStorage.getItem('ii-session-id') || null;
 
-      // Check if we should open chat view (from /chat route)
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('view') === 'chat') {
-        this.currentView = 'chat';
+      // Restore view from URL path
+      const path = window.location.pathname.replace(/\/$/, '');
+      const pathViews = { '/chat': 'chat', '/settings': 'settings', '/reports': 'reports' };
+      if (pathViews[path]) {
+        this.currentView = pathViews[path];
+      } else {
+        // Legacy query param support
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('view') === 'chat') {
+          this.currentView = 'chat';
+        }
       }
 
       // Load reports
@@ -304,6 +324,9 @@ document.addEventListener('alpine:init', () => {
         const savedSettings = JSON.parse(localStorage.getItem('ii-settings') || '{}');
         this.settings = { ...this.settings, ...savedSettings };
       } catch {}
+
+      // Load AI model settings from backend
+      this.fetchLlmSettings();
     },
 
     // ---- Dark mode ----
@@ -323,7 +346,8 @@ document.addEventListener('alpine:init', () => {
       this.currentView = view;
       this.mobileSidebarOpen = false;
       // Update URL without reload
-      const url = view === 'chat' ? '/chat' : '/app';
+      const viewRoutes = { chat: '/chat', settings: '/settings', reports: '/reports' };
+      const url = viewRoutes[view] || '/app';
       window.history.replaceState({}, '', url);
     },
 
@@ -842,6 +866,80 @@ document.addEventListener('alpine:init', () => {
     saveSettings() {
       localStorage.setItem('ii-settings', JSON.stringify(this.settings));
       this.showToast('Settings saved!');
+    },
+
+    // ---- AI Model Settings ----
+
+    populateLlmSelect(el, placeholder, currentValue) {
+      while (el.firstChild) el.removeChild(el.firstChild);
+      const ph = document.createElement('option');
+      ph.value = '';
+      ph.textContent = placeholder;
+      el.appendChild(ph);
+      for (const alias of Object.keys(this.llmAvailableModels)) {
+        const opt = document.createElement('option');
+        opt.value = alias;
+        opt.textContent = alias;
+        el.appendChild(opt);
+      }
+      el.value = currentValue || '';
+    },
+
+    async fetchLlmSettings() {
+      this.llmModelsLoading = true;
+      try {
+        const resp = await fetch('/api/v1/settings/llm');
+        if (!resp.ok) throw new Error('Failed to load LLM settings');
+        const data = await resp.json();
+
+        // Populate available models (filter out embedding/image model aliases)
+        const aliases = data.available_models?.aliases || {};
+        this.llmAvailableModels = {};
+        for (const [alias, target] of Object.entries(aliases)) {
+          if (alias.startsWith('embed-') || alias.startsWith('dall-e')) continue;
+          this.llmAvailableModels[alias] = target;
+        }
+
+        // Populate current config (convert null to empty string for select binding)
+        const cfg = data.config || {};
+        this.llmConfig.default_model = cfg.default_model || '';
+        const steps = cfg.step_models || {};
+        this.llmConfig.step_models.intent_detection = steps.intent_detection || '';
+        this.llmConfig.step_models.sql_generation = steps.sql_generation || '';
+        this.llmConfig.step_models.chart_suggestion = steps.chart_suggestion || '';
+      } catch (e) {
+        console.error('Failed to load LLM settings:', e);
+      } finally {
+        this.llmModelsLoading = false;
+      }
+    },
+
+    async saveLlmSettings() {
+      this.llmSettingsSaving = true;
+      try {
+        const payload = {
+          default_model: this.llmConfig.default_model || null,
+          step_models: {
+            intent_detection: this.llmConfig.step_models.intent_detection || null,
+            sql_generation: this.llmConfig.step_models.sql_generation || null,
+            chart_suggestion: this.llmConfig.step_models.chart_suggestion || null,
+          },
+        };
+
+        const resp = await fetch('/api/v1/settings/llm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!resp.ok) throw new Error('Save failed');
+        this.showToast('AI model settings saved!');
+      } catch (e) {
+        console.error('Failed to save LLM settings:', e);
+        this.showToast('Failed to save AI model settings', 'error');
+      } finally {
+        this.llmSettingsSaving = false;
+      }
     },
   }));
 
