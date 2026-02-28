@@ -2,8 +2,6 @@
 
 Governed analytics platform for the [InteLIS](https://github.com/deforay) Laboratory Information System. Transforms laboratory data into actionable program intelligence while maintaining strict privacy controls.
 
-## What It Does
-
 Intelis Insights sits on top of your InteLIS laboratory database and gives you two ways to explore your data:
 
 1. **Dashboard** — Pre-built national indicators with interactive charts. No AI involved, fast and deterministic.
@@ -11,12 +9,45 @@ Intelis Insights sits on top of your InteLIS laboratory database and gives you t
 
 Both modes enforce strict privacy controls — patient-level data is never exposed.
 
-## Features
+---
 
-- **Smart Dashboard** — Predefined national indicators with interactive charts
-- **Saved Reports** — Reusable structured analyses
-- **Conversational Authoring** — AI-assisted query building via chat interface
-- **Knowledge Assistance** — RAG-powered, privacy-safe document Q&A
+## Get Running
+
+New here? Follow these steps in order:
+
+1. **[Prerequisites](getting-started/prerequisites.md)** — What you need before you start
+2. **[Docker Setup](getting-started/docker-setup.md)** — Fastest way to get running (~5 minutes)
+3. **[First-Run Checklist](getting-started/first-run-checklist.md)** — Verify everything works
+
+Don't want Docker? See [Manual Setup](getting-started/manual-setup.md) instead.
+
+## Already Running?
+
+Common next steps once the app is up:
+
+- [Connect your InteLIS data](guides/connecting-intelis-data.md) — Required for the chat and dashboard to show real data
+- [Configure API keys](guides/environment-variables.md#llm-provider-api-keys) — Add LLM provider keys via the Settings page or `.env`
+- [Seed the RAG index](guides/rag-seeding.md) — Helps the AI generate better SQL queries
+- [Deploy to production](guides/production-deployment.md) — Secure and optimize for real users
+
+## Understand the System
+
+- [Architecture Overview](concepts/architecture.md) — How the services fit together
+- [Two Databases](concepts/two-databases.md) — Why there's an app DB and a query DB
+- [RAG & Vector Search](concepts/rag.md) — How schema context improves AI accuracy
+- [Glossary](concepts/glossary.md) — Terms used throughout the docs
+
+## Reference
+
+- [API Reference](reference/api.md) — All HTTP endpoints
+- [Query Pipeline](reference/query-pipeline.md) — How a chat question becomes a chart
+- [LLM Sidecar](reference/llm-sidecar.md) — Model aliases, configuration, endpoints
+- [Environment Variables](guides/environment-variables.md) — Every `.env` setting explained
+- [Makefile Reference](guides/makefile-reference.md) — All `make` commands
+
+---
+
+[:material-wrench: Troubleshooting](troubleshooting.md) — Stuck? Start here.
 
 ## Tech Stack
 
@@ -28,55 +59,3 @@ Both modes enforce strict privacy controls — patient-level data is never expos
 | RAG | Python FastAPI sidecar, Qdrant vector DB |
 | LLM | Configurable via LLM sidecar (Claude, DeepSeek, etc.) |
 | Migrations | Phinx |
-
-## Documentation
-
-<div class="grid cards" markdown>
-
--   **Getting Started**
-
-    ---
-
-    Install and run Intelis Insights in minutes.
-
-    [:octicons-arrow-right-24: Prerequisites](getting-started/prerequisites.md)
-    [:octicons-arrow-right-24: Docker Setup](getting-started/docker-setup.md)
-    [:octicons-arrow-right-24: Manual Setup](getting-started/manual-setup.md)
-    [:octicons-arrow-right-24: First-Run Checklist](getting-started/first-run-checklist.md)
-
--   **Concepts**
-
-    ---
-
-    Understand how the system works before diving in.
-
-    [:octicons-arrow-right-24: Architecture Overview](concepts/architecture.md)
-    [:octicons-arrow-right-24: Two Databases](concepts/two-databases.md)
-    [:octicons-arrow-right-24: RAG & Vector Search](concepts/rag.md)
-    [:octicons-arrow-right-24: Glossary](concepts/glossary.md)
-
--   **Guides**
-
-    ---
-
-    Step-by-step instructions for common tasks.
-
-    [:octicons-arrow-right-24: Connecting InteLIS Data](guides/connecting-intelis-data.md)
-    [:octicons-arrow-right-24: RAG Seeding](guides/rag-seeding.md)
-    [:octicons-arrow-right-24: Makefile Reference](guides/makefile-reference.md)
-    [:octicons-arrow-right-24: Environment Variables](guides/environment-variables.md)
-    [:octicons-arrow-right-24: Production Deployment](guides/production-deployment.md)
-
--   **Reference**
-
-    ---
-
-    Detailed technical documentation.
-
-    [:octicons-arrow-right-24: API Reference](reference/api.md)
-    [:octicons-arrow-right-24: Query Pipeline](reference/query-pipeline.md)
-    [:octicons-arrow-right-24: LLM Sidecar](reference/llm-sidecar.md)
-
-</div>
-
-[:material-wrench: Troubleshooting](troubleshooting.md) — Common problems and how to fix them.
