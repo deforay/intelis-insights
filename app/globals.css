@@ -52,7 +52,8 @@
 
 /* ── Light theme (canonical / default) ────────────────────────────── */
 :root {
-  --background: oklch(0.99 0.003 240);
+  /* Barely-tinted off-white — cards float on near-white rather than slate */
+  --background: oklch(0.985 0.004 240);
   --foreground: oklch(0.18 0.02 240);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.18 0.02 240);

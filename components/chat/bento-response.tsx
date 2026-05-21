@@ -47,7 +47,7 @@ export function BentoResponse({
   return (
     <div className="flex flex-col gap-4">
       {turn.narration && (
-        <div className="relative rounded-2xl border bg-card/40 backdrop-blur p-5 overflow-hidden">
+        <div className="relative rounded-2xl bg-card/80 backdrop-blur p-5 overflow-hidden shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.05)]">
           <div
             className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent"
           />
@@ -244,7 +244,7 @@ export function BentoResponse({
                 <button
                   key={q}
                   onClick={() => onPickFollowUp(q)}
-                  className="group rounded-full border bg-card/40 backdrop-blur px-3.5 py-1.5 text-sm text-foreground/80 hover:text-foreground hover:border-primary/40 hover:bg-card transition-all"
+                  className="group rounded-full bg-card/90 backdrop-blur px-3.5 py-1.5 text-sm text-foreground/80 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_2px_8px_rgba(15,23,42,0.04)] hover:text-foreground hover:bg-card hover:-translate-y-px hover:shadow-[0_1px_2px_rgba(15,23,42,0.05),0_6px_14px_rgba(15,23,42,0.06)] transition-all duration-200"
                 >
                   {q}
                 </button>
@@ -298,8 +298,10 @@ function BentoTile({
   return (
     <div
       className={cn(
-        "relative rounded-2xl border bg-card/60 backdrop-blur overflow-hidden",
-        "transition-colors hover:border-foreground/20",
+        "relative rounded-2xl bg-card/90 backdrop-blur overflow-hidden",
+        "shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.05)]",
+        "transition-all duration-200 hover:-translate-y-px",
+        "hover:shadow-[0_1px_2px_rgba(15,23,42,0.05),0_12px_32px_rgba(15,23,42,0.07)]",
         className,
       )}
     >
