@@ -19,9 +19,9 @@ import { ChartRenderer } from "@/components/chart/chart-renderer";
 import type { AssistantTurn } from "./types";
 
 export function AssistantBubble({ turn }: { turn: AssistantTurn }) {
-  const [tab, setTab] = useState("chart");
   const hasResults = !!turn.results;
   const hasChart = !!turn.chart && turn.chart.recommended !== "table";
+  const [tab, setTab] = useState(hasChart ? "chart" : "table");
 
   return (
     <div className="flex flex-col gap-3">
