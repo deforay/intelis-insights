@@ -21,6 +21,7 @@ import {
 import { runQuery } from "@/lib/graph/runner";
 import type { QueryEvent } from "@/lib/graph/events";
 import { writeAuditLog } from "@/lib/audit/log";
+import { flushTraces } from "@/lib/observability/langfuse";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -132,6 +133,12 @@ export async function POST(req: Request) {
 
       writeEvent({ type: "done", auditId, durationMs });
       controller.close();
+
+      // Best-effort flush so traces from this request land in LangFuse
+      // before the process is recycled. Non-fatal on failure.
+      flushTraces().catch((err) => {
+        console.error("[langfuse] flush failed:", err);
+      });
     },
   });
 
