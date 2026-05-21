@@ -1,6 +1,6 @@
 # Codebase tour
 
-A guided walk through this repo, written for someone fluent in **PHP / MySQL / the InteLIS schema** but newer to **React / Next.js / LangGraph**. No tutorials — just orientation. Read this once before opening unfamiliar files; come back as needed.
+A guided walk through this repo for new contributors. No tutorials — just orientation. Read it once before opening unfamiliar files; come back as needed.
 
 ## The 30-second mental model
 
@@ -152,7 +152,7 @@ The two security layers the LLM cannot bypass. Read both — they're short.
 If you've used an ORM in PHP (Eloquent, Doctrine), Drizzle will feel familiar — schema in code, type-safe queries. The lab DB does not use Drizzle because the InteLIS schema is external and we only read it.
 
 ### `lib/config/`
-**This is your most familiar territory.** The PHP project's domain logic — the things you wrote — was ported into plain TypeScript modules here.
+The lab domain logic — VL suppression cutoffs, what counts as a rejected sample, default time windows — was ported here from the earlier PHP implementation into plain TypeScript modules.
 - **business-rules.ts** — VL suppression cutoffs, default time windows, "what counts as a rejected sample", etc.
 - **field-guide.ts** — human-readable descriptions of important columns. Goes into the prompt as context.
 - **tables.ts** — the allowlist that `validation/safety.ts` checks against.
