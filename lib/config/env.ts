@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+/**
+ * Optional URL — accepts undefined OR an empty string (so blank fields
+ * in `.env` don't fail validation), otherwise must parse as a URL.
+ */
+const optionalUrl = z.preprocess(
+  (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+  z.url().optional(),
+);
+
 const LlmProvider = z.enum([
   "openai",
   "anthropic",
@@ -22,7 +31,7 @@ const EnvSchema = z.object({
 
   // Auth.js v5 (AUTH_* is the canonical name in v5)
   AUTH_SECRET: z.string().min(32, "AUTH_SECRET must be at least 32 chars"),
-  AUTH_URL: z.url().optional(),
+  AUTH_URL: optionalUrl,
 
   // App database (Postgres) — sessions, audit, users, LangGraph checkpoints
   APP_DB_URL: z.string().min(1),
@@ -54,7 +63,7 @@ const EnvSchema = z.object({
 
   // Generic OpenAI-compatible endpoint (Together, Fireworks, OpenRouter,
   // self-hosted vLLM / LiteLLM, etc.)
-  OPENAI_COMPATIBLE_BASE_URL: z.url().optional(),
+  OPENAI_COMPATIBLE_BASE_URL: optionalUrl,
   OPENAI_COMPATIBLE_API_KEY: z.string().optional(),
 
   OLLAMA_BASE_URL: z.url().default("http://localhost:11434/v1"),
@@ -66,7 +75,7 @@ const EnvSchema = z.object({
   // Observability (LangFuse — optional, self-hosted or cloud)
   LANGFUSE_PUBLIC_KEY: z.string().optional(),
   LANGFUSE_SECRET_KEY: z.string().optional(),
-  LANGFUSE_HOST: z.url().optional(),
+  LANGFUSE_HOST: optionalUrl,
 });
 
 type Env = z.infer<typeof EnvSchema>;
