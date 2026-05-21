@@ -80,7 +80,56 @@ const EnvSchema = z.object({
 
 type Env = z.infer<typeof EnvSchema>;
 
+/**
+ * Permissive defaults used only during `next build`. At build time
+ * Next.js evaluates every route module to collect page data, which
+ * pulls in modules that ultimately import this one. We don't have
+ * real env values then — but the build doesn't actually call the
+ * database or LLM, so dummy values are safe. Real env is enforced
+ * when the container starts.
+ */
+const BUILD_PLACEHOLDER: Env = {
+  NODE_ENV: "production",
+  AUTH_SECRET: "x".repeat(32),
+  AUTH_URL: undefined,
+  APP_DB_URL: "postgres://build:build@localhost:5432/build",
+  LAB_DB_HOST: "build",
+  LAB_DB_PORT: 3306,
+  LAB_DB_NAME: "build",
+  LAB_DB_USER: "build",
+  LAB_DB_PASSWORD: "",
+  QDRANT_URL: "http://localhost:6333",
+  QDRANT_API_KEY: undefined,
+  QDRANT_COLLECTION: "intelis_insights",
+  LLM_PROVIDER: "openai",
+  LLM_MODEL: "gpt-4o",
+  LLM_MODEL_FAST: "gpt-4o-mini",
+  OPENAI_API_KEY: "build",
+  ANTHROPIC_API_KEY: undefined,
+  GOOGLE_GENERATIVE_AI_API_KEY: undefined,
+  MISTRAL_API_KEY: undefined,
+  DEEPSEEK_API_KEY: undefined,
+  GROQ_API_KEY: undefined,
+  OPENAI_COMPATIBLE_BASE_URL: undefined,
+  OPENAI_COMPATIBLE_API_KEY: undefined,
+  OLLAMA_BASE_URL: "http://localhost:11434/v1",
+  EMBEDDINGS_PROVIDER: "openai",
+  EMBEDDINGS_MODEL: "text-embedding-3-small",
+  LANGFUSE_PUBLIC_KEY: undefined,
+  LANGFUSE_SECRET_KEY: undefined,
+  LANGFUSE_HOST: undefined,
+};
+
 function loadEnv(): Env {
+  // During the Next.js build phase, return placeholders so module
+  // evaluation doesn't throw. The build never calls the DB or LLM.
+  if (
+    process.env.NEXT_PHASE === "phase-production-build" ||
+    process.env.SKIP_ENV_VALIDATION === "1"
+  ) {
+    return BUILD_PLACEHOLDER;
+  }
+
   const parsed = EnvSchema.safeParse(process.env);
   if (!parsed.success) {
     const issues = parsed.error.issues
