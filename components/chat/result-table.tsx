@@ -43,9 +43,9 @@ export function ResultTable({ result }: { result: LabQueryResult }) {
                 {result.columns.map((c) => (
                   <TableHead
                     key={c}
-                    className="text-[11px] font-medium uppercase tracking-wider"
+                    className="text-[11px] font-medium tracking-wider"
                   >
-                    {c}
+                    {prettyHeader(c)}
                   </TableHead>
                 ))}
               </TableRow>
@@ -99,4 +99,35 @@ function formatCell(v: unknown): string {
   if (typeof v === "number") return v.toLocaleString();
   if (v instanceof Date) return v.toISOString();
   return String(v);
+}
+
+/**
+ * Defensively prettify a column header in case the LLM didn't alias it
+ * (e.g. `geo_name` -> `Geo Name`, `vl_test_count` -> `VL Test Count`).
+ * Treats common medical-lab acronyms as such.
+ */
+const ACRONYMS = new Set([
+  "vl",
+  "hiv",
+  "tb",
+  "eid",
+  "cd4",
+  "tat",
+  "art",
+  "id",
+  "sql",
+  "url",
+]);
+
+function prettyHeader(name: string): string {
+  if (/\s/.test(name)) return name; // already aliased with spaces
+  return name
+    .split(/[_\s]+/)
+    .filter(Boolean)
+    .map((part) =>
+      ACRONYMS.has(part.toLowerCase())
+        ? part.toUpperCase()
+        : part.charAt(0).toUpperCase() + part.slice(1).toLowerCase(),
+    )
+    .join(" ");
 }
