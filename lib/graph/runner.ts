@@ -84,6 +84,7 @@ export async function runQuery(input: RunQueryInput): Promise<RunQueryResult> {
       }
       resolveFinal(accumulated);
     } catch (err) {
+      console.error("[graph] uncaught error in stream:", err);
       rejectFinal(err);
       yield {
         type: "error",

@@ -54,7 +54,7 @@ function buildModel(modelId: string): LanguageModel {
     }
     case "deepseek": {
       const provider = createOpenAI({
-        baseURL: "https://api.deepseek.com",
+        baseURL: "https://api.deepseek.com/v1",
         apiKey: env.DEEPSEEK_API_KEY!,
       });
       return provider(modelId);
