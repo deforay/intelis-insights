@@ -26,6 +26,7 @@ export function SessionsMenu() {
     if (!open) return;
     if (state.kind === "loaded" || state.kind === "loading") return;
     let canceled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setState({ kind: "loading" });
     (async () => {
       try {
