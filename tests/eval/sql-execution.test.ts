@@ -1,25 +1,27 @@
 /**
  * Live SQL-execution eval harness.
  *
- * Runs each fixture's NL question through the full LangGraph
- * pipeline against the real Qdrant + LLM + lab MySQL stack and
- * asserts the result actually executed and returned a sensible
- * shape. This is the harness that would have caught:
- *   - The "Month LIMIT 10000" syntax error (bare reserved-word alias).
- *   - The INNER JOIN row-drop (province split 405+405 ≠ 9990 total).
- *   - Any SQL the validator passed but MySQL refused.
+ * Two fixture shapes:
  *
- * Gated behind EVAL_LIVE=1 so `npm test` and the cheaper
- * `npm run eval` (SQL-only feature-shape harness) don't accidentally
- * hit the live lab DB.
+ *   1. Single-turn — one question through the full pipeline. Asserts on
+ *      row count, column count, error state, value ranges, and column
+ *      aliasing.
+ *
+ *   2. Multi-turn — a sequence of questions in one session. Each turn's
+ *      assistant content is folded into the next turn's conversation
+ *      block (matching what the API route does in production). Turns
+ *      can `captureAs` a numeric value and a later turn can assert
+ *      `sumNumericApproxEquals` against it. This is what catches the
+ *      class of bugs where a follow-up silently changes scope.
+ *
+ * Gated behind EVAL_LIVE=1 so the cheaper `npm run eval` (LLM-only
+ * feature-shape harness) and the default `npm test` don't touch the
+ * lab DB.
  *
  * Usage:
- *   docker compose up -d postgres qdrant     # the graph needs them
- *   npm run eval:live                         # against $LAB_DB_*
- *   npm run eval:live -- -t vl-by-province    # subset
- *
- * Requires real env (no SKIP_ENV_VALIDATION). The fixtures are run
- * one at a time so failures don't pollute each other's state.
+ *   docker compose up -d postgres qdrant
+ *   npm run eval:live
+ *   npm run eval:live -- -t tat-avg-per-lab
  */
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
@@ -27,8 +29,9 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { runQuery } from "@/lib/graph/runner";
 import type { GraphStateType } from "@/lib/graph/state";
-import type { QueryEvent } from "@/lib/graph/events";
 import type { UserContext } from "@/lib/auth/rbac";
+
+// ── Fixture types ────────────────────────────────────────────────────
 
 interface LiveExpectations {
   shouldFail?: boolean;
@@ -37,19 +40,46 @@ interface LiveExpectations {
   maxRows?: number;
   minColumns?: number;
   maxColumns?: number;
+  /** Every result column header should be a human alias (title case w/ spaces). */
+  columnsMustBeAliased?: boolean;
+  /** Every numeric cell across all rows should fall in this range. */
+  allNumericValuesInRange?: { min: number; max: number };
 }
 
-interface Fixture {
+interface TurnExpectations extends LiveExpectations {
+  /** Sum of all numeric columns over all rows must equal a previously captured value (± tolerance). */
+  sumNumericApproxEquals?: { ref: string; tolerance: number };
+  /** Generated SQL must contain ALL of these substrings (case-sensitive). */
+  sqlMustContainKeywords?: string[];
+}
+
+interface SingleTurnFixture {
   name: string;
+  description?: string;
   question: string;
   liveExpectations?: LiveExpectations;
 }
 
+interface MultiTurnFixture {
+  name: string;
+  description?: string;
+  turns: Array<{
+    question: string;
+    captureAs?: string;
+    expect?: TurnExpectations;
+  }>;
+}
+
+type Fixture = SingleTurnFixture | MultiTurnFixture;
+
+function isMultiTurn(fx: Fixture): fx is MultiTurnFixture {
+  return "turns" in fx;
+}
+
+// ── Runner ───────────────────────────────────────────────────────────
+
 const FIXTURES: Fixture[] = JSON.parse(
-  fs.readFileSync(
-    path.join(__dirname, "fixtures", "queries.json"),
-    "utf-8",
-  ),
+  fs.readFileSync(path.join(__dirname, "fixtures", "queries.json"), "utf-8"),
 );
 
 const NATIONAL_USER: UserContext = {
@@ -59,160 +89,266 @@ const NATIONAL_USER: UserContext = {
   allowedDistricts: [],
 };
 
-const enabled = process.env.EVAL_LIVE === "1";
+const CONVERSATION_WINDOW_TURNS = 4;
 
-async function runFixture(question: string): Promise<GraphStateType> {
-  const sessionId = `eval-${randomUUID()}`;
+async function runOneTurn(
+  question: string,
+  sessionId: string,
+  conversationBlock: string | null,
+): Promise<GraphStateType> {
   const { events, final } = await runQuery({
     question,
     sessionId,
     userContext: NATIONAL_USER,
-    conversationBlock: null,
+    conversationBlock,
   });
-
-  // Drain the event stream — we only care about the final state.
-  // Track errors as they stream so a runtime error reaches the test.
-  const errors: QueryEvent[] = [];
-  for await (const ev of events) {
-    if (ev.type === "error") errors.push(ev);
+  // Drain the event stream — only the final state is asserted on.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  for await (const _ of events) {
+    // intentionally ignored
   }
-
-  const state = await final;
-  if (state.error || errors.length > 0) {
-    // The state.error is set if any node yielded one; this keeps it.
-    return state;
-  }
-  return state;
+  return await final;
 }
 
-(enabled ? describe : describe.skip)(
-  "Live SQL-execution eval",
-  () => {
-    for (const fx of FIXTURES) {
-      const exp = fx.liveExpectations;
-      if (!exp) continue;
-      it(
-        fx.name,
-        async () => {
-          const state = await runFixture(fx.question);
+function buildConversationBlock(
+  history: Array<{ role: "user" | "assistant"; content: string }>,
+): string | null {
+  if (history.length === 0) return null;
+  const tail = history.slice(-CONVERSATION_WINDOW_TURNS * 2);
+  return tail
+    .map(
+      (m) => `${m.role === "user" ? "USER" : "ASSISTANT"}: ${m.content}`,
+    )
+    .join("\n");
+}
 
-          if (exp.shouldFail) {
-            expect(
-              state.error,
-              `expected ${fx.name} to fail (privacy probe, validator rejection, or clarification)`,
-            ).toBeTruthy();
-            if (exp.errorStageOneOf && state.error) {
-              expect(
-                exp.errorStageOneOf.includes(state.error.stage),
-                `error stage was "${state.error.stage}"; expected one of ${exp.errorStageOneOf.join(", ")}`,
-              ).toBe(true);
-            }
-            return;
-          }
+function buildAssistantContent(state: GraphStateType): string {
+  if (state.error) return `Error: ${state.error.message}`;
+  const rowsPart = state.results
+    ? `Returned ${state.results.count} row(s).`
+    : "(no rows)";
+  const sqlPart = state.sql ? `\nSQL: ${state.sql}` : "";
+  return `${rowsPart}${sqlPart}`;
+}
 
-          // Success path
-          expect(
-            state.error,
-            `unexpected error at ${state.error?.stage}: ${state.error?.message}`,
-          ).toBeNull();
-          expect(state.results, "expected non-null results").toBeTruthy();
-          if (!state.results) return;
+// ── Assertions ───────────────────────────────────────────────────────
 
-          if (exp.minRows !== undefined) {
-            expect(
-              state.results.count,
-              `expected ≥${exp.minRows} rows; got ${state.results.count}`,
-            ).toBeGreaterThanOrEqual(exp.minRows);
-          }
-          if (exp.maxRows !== undefined) {
-            expect(
-              state.results.count,
-              `expected ≤${exp.maxRows} rows; got ${state.results.count}`,
-            ).toBeLessThanOrEqual(exp.maxRows);
-          }
-          if (exp.minColumns !== undefined) {
-            expect(state.results.columns.length).toBeGreaterThanOrEqual(
-              exp.minColumns,
-            );
-          }
-          if (exp.maxColumns !== undefined) {
-            expect(state.results.columns.length).toBeLessThanOrEqual(
-              exp.maxColumns,
-            );
-          }
-        },
-        90_000,
-      );
+function assertLiveExpectations(
+  fxName: string,
+  exp: LiveExpectations,
+  state: GraphStateType,
+): void {
+  if (exp.shouldFail) {
+    expect(
+      state.error,
+      `${fxName}: expected failure (privacy probe / clarification / validator rejection)`,
+    ).toBeTruthy();
+    if (exp.errorStageOneOf && state.error) {
+      expect(
+        exp.errorStageOneOf.includes(state.error.stage),
+        `${fxName}: error stage was "${state.error.stage}"; expected one of ${exp.errorStageOneOf.join(", ")}`,
+      ).toBe(true);
     }
+    return;
+  }
 
-    /**
-     * Row-drop invariant: when we ask for a total and then for a
-     * breakdown of the same total, the breakdown's rows must sum to
-     * within 5% of the total. This is the test that would have flagged
-     * the INNER JOIN drop (province split 810 ≠ 9990 total).
-     */
-    it("vl-total ≈ sum(vl-by-province)", async () => {
-      const totalState = await runFixture(
-        "How many VL tests were done last month?",
-      );
-      const splitState = await runFixture(
-        "How many VL tests last month by province?",
-      );
+  expect(
+    state.error,
+    `${fxName}: unexpected error at ${state.error?.stage}: ${state.error?.message}`,
+  ).toBeNull();
+  expect(state.results, `${fxName}: expected non-null results`).toBeTruthy();
+  if (!state.results) return;
 
-      expect(totalState.error).toBeNull();
-      expect(splitState.error).toBeNull();
-      const total = numericFromKpiRow(totalState);
-      const splitSum = sumNumericColumn(splitState);
-
-      expect(total, "no numeric value in unbroken total").toBeGreaterThan(0);
-      expect(splitSum, "no numeric column in split").toBeGreaterThan(0);
-
-      const ratio = splitSum / total;
+  if (exp.minRows !== undefined) {
+    expect(
+      state.results.count,
+      `${fxName}: expected ≥${exp.minRows} rows; got ${state.results.count}`,
+    ).toBeGreaterThanOrEqual(exp.minRows);
+  }
+  if (exp.maxRows !== undefined) {
+    expect(
+      state.results.count,
+      `${fxName}: expected ≤${exp.maxRows} rows; got ${state.results.count}`,
+    ).toBeLessThanOrEqual(exp.maxRows);
+  }
+  if (exp.minColumns !== undefined) {
+    expect(
+      state.results.columns.length,
+      `${fxName}: expected ≥${exp.minColumns} columns`,
+    ).toBeGreaterThanOrEqual(exp.minColumns);
+  }
+  if (exp.maxColumns !== undefined) {
+    expect(
+      state.results.columns.length,
+      `${fxName}: expected ≤${exp.maxColumns} columns`,
+    ).toBeLessThanOrEqual(exp.maxColumns);
+  }
+  if (exp.columnsMustBeAliased) {
+    for (const col of state.results.columns) {
       expect(
-        ratio,
-        `split sum (${splitSum}) is only ${(ratio * 100).toFixed(1)}% of unbroken total (${total}) — INNER JOIN likely dropping rows`,
-      ).toBeGreaterThanOrEqual(0.95);
-      expect(
-        ratio,
-        `split sum (${splitSum}) exceeds unbroken total (${total}) — joins may be fanning out`,
-      ).toBeLessThanOrEqual(1.05);
-    }, 180_000);
-  },
-);
+        looksAliased(col),
+        `${fxName}: column "${col}" looks like a raw DB identifier (snake_case / all-uppercase). Aliases must be title case with spaces.`,
+      ).toBe(true);
+    }
+  }
+  if (exp.allNumericValuesInRange) {
+    const { min, max } = exp.allNumericValuesInRange;
+    for (const row of state.results.rows) {
+      for (const col of state.results.columns) {
+        const v = row[col];
+        const n = numericOrNull(v);
+        if (n === null) continue;
+        expect(
+          n,
+          `${fxName}: value ${n} in column "${col}" is outside expected range [${min}, ${max}]`,
+        ).toBeGreaterThanOrEqual(min);
+        expect(
+          n,
+          `${fxName}: value ${n} in column "${col}" is outside expected range [${min}, ${max}]`,
+        ).toBeLessThanOrEqual(max);
+      }
+    }
+  }
+}
 
-function numericFromKpiRow(state: GraphStateType): number {
+function assertTurnExpectations(
+  fxName: string,
+  exp: TurnExpectations,
+  state: GraphStateType,
+  captures: Record<string, number>,
+): void {
+  assertLiveExpectations(fxName, exp, state);
+  if (exp.sumNumericApproxEquals && !exp.shouldFail) {
+    const { ref, tolerance } = exp.sumNumericApproxEquals;
+    const captured = captures[ref];
+    expect(
+      captured,
+      `${fxName}: no captured value for "${ref}". Did a previous turn use captureAs?`,
+    ).toBeGreaterThan(0);
+    const splitSum = sumNumericColumn(state);
+    expect(splitSum, `${fxName}: no numeric column in this turn's result`).toBeGreaterThan(0);
+    const ratio = splitSum / captured;
+    expect(
+      ratio,
+      `${fxName}: sum ${splitSum} is ${(ratio * 100).toFixed(1)}% of captured ${ref} (${captured}). Tolerance ±${tolerance * 100}%. Likely INNER JOIN dropping rows or scope drift.`,
+    ).toBeGreaterThanOrEqual(1 - tolerance);
+    expect(
+      ratio,
+      `${fxName}: sum ${splitSum} exceeds captured ${ref} (${captured}) by more than ${tolerance * 100}%. Joins may be fanning out.`,
+    ).toBeLessThanOrEqual(1 + tolerance);
+  }
+  if (exp.sqlMustContainKeywords && state.sql) {
+    for (const kw of exp.sqlMustContainKeywords) {
+      expect(
+        state.sql.includes(kw),
+        `${fxName}: generated SQL is missing required keyword "${kw}". Got:\n${state.sql}`,
+      ).toBe(true);
+    }
+  }
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────
+
+const SNAKE_CASE = /^[a-z][a-z0-9_]*$/;
+const ALL_UPPER = /^[A-Z][A-Z0-9_]*$/;
+
+function looksAliased(col: string): boolean {
+  if (SNAKE_CASE.test(col)) return false;
+  if (ALL_UPPER.test(col) && col.length > 3) return false;
+  return true;
+}
+
+function numericOrNull(v: unknown): number | null {
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  if (typeof v === "string") {
+    const cleaned = v.replace(/,/g, "");
+    if (cleaned.trim() === "") return null;
+    const n = Number(cleaned);
+    if (Number.isFinite(n) && /\d/.test(v) && !/[a-z]/i.test(cleaned))
+      return n;
+  }
+  return null;
+}
+
+function extractScalarNumber(state: GraphStateType): number {
   if (!state.results || state.results.count !== 1) return 0;
   const row = state.results.rows[0];
   for (const col of state.results.columns) {
-    const v = row[col];
-    if (typeof v === "number") return v;
-    if (typeof v === "string") {
-      const n = Number(v.replace(/,/g, ""));
-      if (Number.isFinite(n)) return n;
-    }
+    const n = numericOrNull(row[col]);
+    if (n !== null) return n;
   }
   return 0;
 }
 
 function sumNumericColumn(state: GraphStateType): number {
   if (!state.results) return 0;
-  // Sum all numeric columns over all rows. For breakdowns this picks
-  // up the count column regardless of its name.
   let total = 0;
   for (const row of state.results.rows) {
     for (const col of state.results.columns) {
-      const v = row[col];
-      if (typeof v === "number") {
-        total += v;
-        continue;
-      }
-      if (typeof v === "string") {
-        const n = Number(v.replace(/,/g, ""));
-        if (Number.isFinite(n) && /\d/.test(v) && !/[a-z]/i.test(v)) {
-          total += n;
-        }
-      }
+      const n = numericOrNull(row[col]);
+      if (n !== null) total += n;
     }
   }
   return total;
 }
+
+// ── Suite ────────────────────────────────────────────────────────────
+
+const enabled = process.env.EVAL_LIVE === "1";
+
+(enabled ? describe : describe.skip)("Live SQL-execution eval", () => {
+  for (const fx of FIXTURES) {
+    if (isMultiTurn(fx)) {
+      it(
+        fx.name,
+        async () => {
+          const sessionId = `eval-${randomUUID()}`;
+          const history: Array<{ role: "user" | "assistant"; content: string }> = [];
+          const captures: Record<string, number> = {};
+
+          for (let i = 0; i < fx.turns.length; i++) {
+            const turn = fx.turns[i];
+            const conversationBlock = buildConversationBlock(history);
+            const state = await runOneTurn(
+              turn.question,
+              sessionId,
+              conversationBlock,
+            );
+
+            if (turn.expect) {
+              assertTurnExpectations(
+                `${fx.name} [turn ${i + 1}: "${turn.question}"]`,
+                turn.expect,
+                state,
+                captures,
+              );
+            }
+
+            if (turn.captureAs && !state.error && state.results) {
+              captures[turn.captureAs] = extractScalarNumber(state);
+            }
+
+            history.push({ role: "user", content: turn.question });
+            history.push({
+              role: "assistant",
+              content: buildAssistantContent(state),
+            });
+          }
+        },
+        180_000,
+      );
+    } else {
+      const exp = fx.liveExpectations;
+      if (!exp) continue;
+      it(
+        fx.name,
+        async () => {
+          const sessionId = `eval-${randomUUID()}`;
+          const state = await runOneTurn(fx.question, sessionId, null);
+          assertLiveExpectations(fx.name, exp, state);
+        },
+        90_000,
+      );
+    }
+  }
+});

@@ -34,11 +34,13 @@
     "liveExpectations": {
       "minRows": 1,
       "minColumns": 2,
-      "maxColumns": 3
+      "maxColumns": 3,
+      "columnsMustBeAliased": true
     }
   },
   {
-    "name": "vl-by-month",
+    "name": "vl-by-month-regression-month-alias",
+    "description": "Regression for the 'near Month LIMIT 10000' syntax error (commit ac1764b). A bare `AS Month` alias collided with MONTH() in the parser; backticks are now required by the prompt.",
     "question": "How many VL tests done by month over the last 12 months?",
     "tables": ["form_vl"],
     "expectations": {
@@ -51,7 +53,8 @@
       "minRows": 1,
       "maxRows": 13,
       "minColumns": 2,
-      "maxColumns": 2
+      "maxColumns": 2,
+      "columnsMustBeAliased": true
     }
   },
   {
@@ -85,6 +88,43 @@
     }
   },
   {
+    "name": "tat-avg-per-lab",
+    "description": "TAT (turnaround time) math. Business rules require excluding outliers where TIMESTAMPDIFF > 365 days or tested < collected; the resulting average should land in a plausible range.",
+    "question": "What's the average turnaround time per testing lab last quarter?",
+    "tables": ["form_vl", "facility_details"],
+    "expectations": {
+      "mustReferenceTables": ["form_vl", "facility_details"],
+      "mustContainKeywords": ["TIMESTAMPDIFF", "sample_collection_date", "sample_tested_datetime"],
+      "mustHaveAliases": true,
+      "mustBeSelectOnly": true
+    },
+    "liveExpectations": {
+      "minRows": 1,
+      "minColumns": 2,
+      "columnsMustBeAliased": true,
+      "allNumericValuesInRange": { "min": 0, "max": 365 }
+    }
+  },
+  {
+    "name": "cross-month-comparison",
+    "description": "User asks for this-month vs last-month side-by-side. Should return two comparable values; both should be > 0 and within an order of magnitude of each other on healthy data.",
+    "question": "Compare VL tests this month to last month",
+    "tables": ["form_vl"],
+    "expectations": {
+      "mustReferenceTables": ["form_vl"],
+      "mustHaveAliases": true,
+      "mustBeSelectOnly": true
+    },
+    "liveExpectations": {
+      "minRows": 1,
+      "maxRows": 2,
+      "minColumns": 1,
+      "maxColumns": 3,
+      "columnsMustBeAliased": true,
+      "allNumericValuesInRange": { "min": 0, "max": 10000000 }
+    }
+  },
+  {
     "name": "privacy-patient-id",
     "question": "Show me all patient_first_name values",
     "tables": ["form_vl"],
@@ -101,5 +141,49 @@
         "validate-query"
       ]
     }
+  },
+  {
+    "name": "multi-turn-province-split-preserves-total",
+    "description": "Regression for the INNER JOIN row-drop (commit ae64344). After a follow-up that splits by province, the per-province sum must approximately equal the unbroken total. Catches LEFT-vs-INNER JOIN drift and INNER JOIN row-drop.",
+    "turns": [
+      {
+        "question": "How many VL tests were done last month?",
+        "captureAs": "monthlyTotal",
+        "expect": {
+          "minRows": 1,
+          "maxRows": 1
+        }
+      },
+      {
+        "question": "Split that province-wise",
+        "expect": {
+          "minRows": 1,
+          "columnsMustBeAliased": true,
+          "sumNumericApproxEquals": {
+            "ref": "monthlyTotal",
+            "tolerance": 0.05
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "multi-turn-date-convention-preserved",
+    "description": "Regression for cross-turn date-convention drift. The first turn used 'last month' = previous calendar month. The follow-up must NOT silently switch to a rolling 30-day window.",
+    "turns": [
+      {
+        "question": "How many VL tests were done last month?",
+        "captureAs": "calendarMonthTotal",
+        "expect": { "minRows": 1, "maxRows": 1 }
+      },
+      {
+        "question": "What was the rejection rate over the same period?",
+        "expect": {
+          "minRows": 1,
+          "maxRows": 1,
+          "sqlMustContainKeywords": ["MONTH(", "YEAR("]
+        }
+      }
+    ]
   }
 ]
