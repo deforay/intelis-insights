@@ -34,6 +34,7 @@ See the full stack and the rationale on the [Architecture](architecture.md#stack
 - [Configuration](configuration.md) — Every environment variable, what it does, and which provider needs what.
 - [Architecture](architecture.md) — The stack, the components, and how they fit together.
 - [Query flow](query-flow.md) — How a question becomes a chart, step by step.
+- [Codebase tour](codebase-tour.md) — Folder-by-folder walkthrough for contributors new to the stack.
 - [Privacy & RBAC](privacy-and-rbac.md) — How patient data stays safe; how district / province / national tiers are enforced.
 - [LLM providers](llm-providers.md) — Supported providers (OpenAI, Anthropic, Google, Mistral, DeepSeek, Groq, Ollama) and how to pick.
 - [Contributing](contributing.md) — All TypeScript / JavaScript. Built to be easy to read, easy to extend.

@@ -78,6 +78,7 @@ nav:
   - Configuration: configuration.md
   - Architecture: architecture.md
   - Query flow: query-flow.md
+  - Codebase tour: codebase-tour.md
   - Privacy & RBAC: privacy-and-rbac.md
   - LLM providers: llm-providers.md
   - Contributing: contributing.md
