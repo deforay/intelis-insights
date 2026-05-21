@@ -125,6 +125,14 @@ export function ChatClient({
                 followUps: event.followUps,
               });
               break;
+            case "clarification":
+              update({
+                clarification: {
+                  question: event.question,
+                  reason: event.reason,
+                },
+              });
+              break;
             case "chart":
               update({ chart: event.chart });
               break;

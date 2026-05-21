@@ -222,6 +222,20 @@ function* expandNodeEvents(
       clarificationNeeded: partial.sqlMeta.clarificationNeeded,
     };
   }
+  // Clarification path — model asked back instead of producing SQL.
+  // Not an error, so emit a distinct event the UI can render with a
+  // friendly card instead of a red banner.
+  if (
+    !partial.sql &&
+    partial.sqlMeta?.clarificationNeeded &&
+    stage === "generate-sql"
+  ) {
+    yield {
+      type: "clarification",
+      question: partial.sqlMeta.clarificationNeeded.question,
+      reason: partial.sqlMeta.clarificationNeeded.reason,
+    };
+  }
   if (partial.accessDecision) {
     yield { type: "access", decision: partial.accessDecision };
   }

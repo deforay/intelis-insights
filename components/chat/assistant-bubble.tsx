@@ -3,6 +3,7 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProgressSteps } from "./progress-steps";
 import { ErrorCard } from "./error-card";
+import { ClarificationCard } from "./clarification-card";
 import { BentoResponse } from "./bento-response";
 import type { AssistantTurn } from "./types";
 
@@ -15,11 +16,12 @@ export function AssistantBubble({
 }) {
   const hasResults = !!turn.results;
   const hasError = !!turn.error;
-  const hasAnyContent = hasResults || hasError;
+  const hasClarification = !!turn.clarification;
+  const hasAnyContent = hasResults || hasError || hasClarification;
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Streaming progress — only visible until results arrive */}
+      {/* Streaming progress — only visible until something arrives */}
       {(turn.isStreaming || Object.keys(turn.stages).length > 0) &&
         !hasAnyContent && (
           <ProgressSteps stages={turn.stages} isStreaming={turn.isStreaming} />
@@ -30,7 +32,15 @@ export function AssistantBubble({
         <Skeleton className="h-[180px] w-full rounded-2xl" />
       )}
 
-      {/* Error path */}
+      {/* Clarification — model asked back. Friendly card, not red banner. */}
+      {hasClarification && turn.clarification && (
+        <ClarificationCard
+          question={turn.clarification.question}
+          reason={turn.clarification.reason}
+        />
+      )}
+
+      {/* Error — something actually broke */}
       {hasError && turn.error && (
         <ErrorCard
           code={turn.error.code}

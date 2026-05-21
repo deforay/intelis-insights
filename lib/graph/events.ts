@@ -32,6 +32,11 @@ export type QueryEvent =
       clarificationNeeded: ClarificationRequest | null;
     }
   | {
+      type: "clarification";
+      question: string;
+      reason: string;
+    }
+  | {
       type: "access";
       decision: AccessDecision;
     }

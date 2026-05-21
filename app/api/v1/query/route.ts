@@ -154,6 +154,12 @@ export async function POST(req: Request) {
 function buildAssistantContent(state: import("@/lib/graph/state").GraphStateType): string {
   if (state.error) return `Error: ${state.error.message}`;
 
+  // Clarification path — model asked back. Persist as a turn so the
+  // next user message has context for what was asked.
+  if (state.sqlMeta?.clarificationNeeded && !state.sql) {
+    return `Clarification requested: ${state.sqlMeta.clarificationNeeded.question}`;
+  }
+
   const parts: string[] = [];
 
   // Lead with the natural-language summary if we have one.

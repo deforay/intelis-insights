@@ -114,26 +114,44 @@ export async function generateSql(
     modelId,
   };
 
-  // Clarification request — short-circuit; the API route will surface
-  // the question back to the user.
-  if (clarification && !object.sql.trim()) {
+  // Confidence gate: a model that hedges below this threshold without
+  // asking for clarification is more useful held back than guessing.
+  // Synthesise a clarification so the user gets an opportunity to
+  // refine instead of seeing wrong-looking SQL run silently.
+  const LOW_CONFIDENCE_THRESHOLD = 0.35;
+  const effectiveClarification: ClarificationRequest | null =
+    clarification ??
+    (object.confidence < LOW_CONFIDENCE_THRESHOLD && object.sql.trim()
+      ? {
+          question:
+            "I'm not confident I understood the question. Could you rephrase or add detail (test type, time window, geography)?",
+          reason: `Model self-reported confidence ${object.confidence.toFixed(2)} below threshold ${LOW_CONFIDENCE_THRESHOLD}.`,
+        }
+      : null);
+
+  const finalMeta: SqlMeta = {
+    ...sqlMeta,
+    clarificationNeeded: effectiveClarification,
+  };
+
+  // Clarification path (model asked back OR we held back on low
+  // confidence). Not an error — it's a valid response shape. The route
+  // handler emits a "clarification" event so the UI can render a
+  // dedicated card with the question.
+  if (effectiveClarification && (!object.sql.trim() || object.confidence < LOW_CONFIDENCE_THRESHOLD)) {
     return {
       sql: null,
-      sqlMeta,
+      sqlMeta: finalMeta,
       sqlRetries: nextRetryCount,
-      error: {
-        code: "clarification_needed",
-        message: clarification.question,
-        stage: "generate-sql",
-      },
+      error: null,
     };
   }
 
-  // The model returned no SQL and no clarification — treat as error.
+  // The model returned no SQL and no clarification — that's an error.
   if (!object.sql.trim()) {
     return {
       sql: null,
-      sqlMeta,
+      sqlMeta: finalMeta,
       sqlRetries: nextRetryCount,
       error: {
         code: "empty_sql",
@@ -146,7 +164,7 @@ export async function generateSql(
 
   return {
     sql: object.sql.trim(),
-    sqlMeta,
+    sqlMeta: finalMeta,
     sqlRetries: nextRetryCount,
     // Clear any prior validator error so the retry path doesn't loop.
     error: null,

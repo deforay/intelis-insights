@@ -31,6 +31,11 @@ export interface AssistantTurn {
   narration: string | null;
   /** Suggested follow-up questions the user might ask next. */
   followUps: string[];
+  /**
+   * The model asked back instead of producing SQL. Surfaced as a
+   * friendly card with the suggested rephrasing — not an error.
+   */
+  clarification: { question: string; reason: string } | null;
   chart: ChartSuggestion | null;
   error: { code: string; message: string; stage: GraphStage } | null;
   traceId: string | null;
@@ -67,6 +72,7 @@ export function createAssistantTurn(): AssistantTurn {
     results: null,
     narration: null,
     followUps: [],
+    clarification: null,
     chart: null,
     error: null,
     traceId: null,

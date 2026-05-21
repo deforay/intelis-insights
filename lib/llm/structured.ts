@@ -31,6 +31,13 @@ export interface StructuredOptions<T extends z.ZodTypeAny> {
   mode?: StructuredMode;
   temperature?: number;
   maxOutputTokens?: number;
+  /**
+   * How many times the AI SDK should retry transient failures
+   * (rate-limit / network / 5xx). The SDK only retries when the
+   * error is marked retryable, so a 4xx like 401 or 400 still
+   * fails fast. Default 3 (one beyond AI SDK's default of 2).
+   */
+  maxRetries?: number;
 }
 
 export interface StructuredResult<T> {
@@ -54,6 +61,7 @@ export async function generateStructured<T extends z.ZodTypeAny>(
     prompt: opts.prompt,
     temperature: opts.temperature ?? 0,
     maxOutputTokens: opts.maxOutputTokens,
+    maxRetries: opts.maxRetries ?? 3,
   });
   return {
     object: result.object as z.infer<T>,
