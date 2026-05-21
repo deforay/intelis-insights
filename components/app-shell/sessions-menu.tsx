@@ -29,38 +29,38 @@ export function SessionsMenu() {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<LoadState>({ kind: "idle" });
 
+  // Refetch every time the drawer opens. The effect depends on `open`
+  // only — including state.kind here would cancel its own fetch (the
+  // setState to "loading" triggers the cleanup that sets canceled=true,
+  // and then the fetch result is dropped).
   useEffect(() => {
     if (!open) return;
-    if (state.kind === "loaded" || state.kind === "loading") return;
     let canceled = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setState({ kind: "loading" });
     const timeout = setTimeout(() => {
-      if (!canceled) {
-        setState({ kind: "error", message: "Request timed out after 10s" });
-      }
+      if (canceled) return;
+      setState({ kind: "error", message: "Request timed out after 10s" });
     }, 10_000);
     (async () => {
       try {
         const res = await fetch("/api/v1/sessions");
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        if (!canceled) {
-          clearTimeout(timeout);
-          setState({ kind: "loaded", sessions: data.sessions ?? [] });
-        }
+        if (canceled) return;
+        clearTimeout(timeout);
+        setState({ kind: "loaded", sessions: data.sessions ?? [] });
       } catch (err) {
-        if (!canceled) {
-          clearTimeout(timeout);
-          setState({ kind: "error", message: (err as Error).message });
-        }
+        if (canceled) return;
+        clearTimeout(timeout);
+        setState({ kind: "error", message: (err as Error).message });
       }
     })();
     return () => {
       canceled = true;
       clearTimeout(timeout);
     };
-  }, [open, state.kind]);
+  }, [open]);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
