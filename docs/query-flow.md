@@ -82,12 +82,12 @@ The workflow's first step is pure pattern matching against the question text —
 ```mermaid
 flowchart LR
   Q["How many VL tests were done last month?"]
-  Q --> R1{contains 'count'<br/>or 'how many'?}
-  Q --> R2{contains 'vl' /<br/>'viral load' / 'hiv'?}
-  Q --> R3{contains 'them' /<br/>'those' / 'of those'?}
-  R1 -->|yes| I[intent = count]
-  R2 -->|yes| T[table = form_vl]
-  R3 -->|no| F[references_previous = false]
+  Q --> R1{"contains 'count' or 'how many'?"}
+  Q --> R2{"contains 'vl', 'viral load', or 'hiv'?"}
+  Q --> R3{"contains 'them', 'those', or 'of those'?"}
+  R1 -->|yes| I["intent = count"]
+  R2 -->|yes| T["table = form_vl"]
+  R3 -->|no| F["references_previous = false"]
 ```
 
 For this question:
@@ -112,7 +112,7 @@ flowchart LR
   V["question vector"]
   V --> S1["Search 1<br/>(general hints)<br/>synonyms, rules,<br/>thresholds, examples"]
   V --> S2["Search 2<br/>(table-specific)<br/>columns + relationships<br/>for form_vl"]
-  S1 --> M[merge + rank]
+  S1 --> M["merge + rank"]
   S2 --> M
   M --> Pack["~24 snippets<br/>passed to the LLM"]
 ```
@@ -158,11 +158,11 @@ The user might be a **district operator** who should only see their districts, o
 ```mermaid
 flowchart LR
   Sql["Generated SQL"]
-  Sql --> Lvl{Access level?}
-  Lvl -->|national| Pass[Pass through unchanged]
+  Sql --> Lvl{"Access level?"}
+  Lvl -->|national| Pass["Pass through unchanged"]
   Lvl -->|province| Inj1["Inject:<br/>facility_state_id IN (...)"]
   Lvl -->|district| Inj2["Inject:<br/>facility_district_id IN (...)"]
-  Inj1 --> Check{Safe to inject?}
+  Inj1 --> Check{"Safe to inject?"}
   Inj2 --> Check
   Check -->|yes| Rewritten["Rewritten SQL"]
   Check -->|no| Reject["Reject with reason"]
