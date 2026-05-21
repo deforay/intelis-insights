@@ -1,7 +1,21 @@
 import { z } from "zod";
 
-const LlmProvider = z.enum(["openai", "anthropic", "google", "ollama"]);
-const EmbeddingsProvider = z.enum(["openai", "ollama"]);
+const LlmProvider = z.enum([
+  "openai",
+  "anthropic",
+  "google",
+  "mistral",
+  "deepseek",
+  "groq",
+  "openai_compatible",
+  "ollama",
+]);
+const EmbeddingsProvider = z.enum([
+  "openai",
+  "mistral",
+  "openai_compatible",
+  "ollama",
+]);
 
 const EnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -34,6 +48,15 @@ const EnvSchema = z.object({
   OPENAI_API_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
   GOOGLE_GENERATIVE_AI_API_KEY: z.string().optional(),
+  MISTRAL_API_KEY: z.string().optional(),
+  DEEPSEEK_API_KEY: z.string().optional(),
+  GROQ_API_KEY: z.string().optional(),
+
+  // Generic OpenAI-compatible endpoint (Together, Fireworks, OpenRouter,
+  // self-hosted vLLM / LiteLLM, etc.)
+  OPENAI_COMPATIBLE_BASE_URL: z.url().optional(),
+  OPENAI_COMPATIBLE_API_KEY: z.string().optional(),
+
   OLLAMA_BASE_URL: z.url().default("http://localhost:11434/v1"),
 
   // Embeddings
@@ -58,18 +81,49 @@ function loadEnv(): Env {
   }
 
   const e = parsed.data;
-  if (e.LLM_PROVIDER === "openai" && !e.OPENAI_API_KEY) {
-    throw new Error("LLM_PROVIDER=openai requires OPENAI_API_KEY");
+
+  const llmRequirements: Record<typeof e.LLM_PROVIDER, () => string | null> = {
+    openai: () => (e.OPENAI_API_KEY ? null : "OPENAI_API_KEY"),
+    anthropic: () => (e.ANTHROPIC_API_KEY ? null : "ANTHROPIC_API_KEY"),
+    google: () =>
+      e.GOOGLE_GENERATIVE_AI_API_KEY ? null : "GOOGLE_GENERATIVE_AI_API_KEY",
+    mistral: () => (e.MISTRAL_API_KEY ? null : "MISTRAL_API_KEY"),
+    deepseek: () => (e.DEEPSEEK_API_KEY ? null : "DEEPSEEK_API_KEY"),
+    groq: () => (e.GROQ_API_KEY ? null : "GROQ_API_KEY"),
+    openai_compatible: () =>
+      !e.OPENAI_COMPATIBLE_BASE_URL
+        ? "OPENAI_COMPATIBLE_BASE_URL"
+        : !e.OPENAI_COMPATIBLE_API_KEY
+        ? "OPENAI_COMPATIBLE_API_KEY"
+        : null,
+    ollama: () => null,
+  };
+  const missingLlm = llmRequirements[e.LLM_PROVIDER]();
+  if (missingLlm) {
+    throw new Error(`LLM_PROVIDER=${e.LLM_PROVIDER} requires ${missingLlm}`);
   }
-  if (e.LLM_PROVIDER === "anthropic" && !e.ANTHROPIC_API_KEY) {
-    throw new Error("LLM_PROVIDER=anthropic requires ANTHROPIC_API_KEY");
+
+  const embedRequirements: Record<
+    typeof e.EMBEDDINGS_PROVIDER,
+    () => string | null
+  > = {
+    openai: () => (e.OPENAI_API_KEY ? null : "OPENAI_API_KEY"),
+    mistral: () => (e.MISTRAL_API_KEY ? null : "MISTRAL_API_KEY"),
+    openai_compatible: () =>
+      !e.OPENAI_COMPATIBLE_BASE_URL
+        ? "OPENAI_COMPATIBLE_BASE_URL"
+        : !e.OPENAI_COMPATIBLE_API_KEY
+        ? "OPENAI_COMPATIBLE_API_KEY"
+        : null,
+    ollama: () => null,
+  };
+  const missingEmbed = embedRequirements[e.EMBEDDINGS_PROVIDER]();
+  if (missingEmbed) {
+    throw new Error(
+      `EMBEDDINGS_PROVIDER=${e.EMBEDDINGS_PROVIDER} requires ${missingEmbed}`,
+    );
   }
-  if (e.LLM_PROVIDER === "google" && !e.GOOGLE_GENERATIVE_AI_API_KEY) {
-    throw new Error("LLM_PROVIDER=google requires GOOGLE_GENERATIVE_AI_API_KEY");
-  }
-  if (e.EMBEDDINGS_PROVIDER === "openai" && !e.OPENAI_API_KEY) {
-    throw new Error("EMBEDDINGS_PROVIDER=openai requires OPENAI_API_KEY");
-  }
+
   return e;
 }
 

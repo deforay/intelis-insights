@@ -37,7 +37,7 @@ Every component is recognizable, FOSS, and JavaScript / TypeScript.
 | Observability | [LangFuse](https://langfuse.com) (self-hostable) | MIT |
 | Runtime | Node 22 LTS | MIT |
 
-**LLM providers supported:** OpenAI, Anthropic, Google, Ollama (local / offline).
+**LLM providers supported:** OpenAI, Anthropic, Google, Mistral, DeepSeek, Groq, any OpenAI-compatible endpoint (Together, Fireworks, OpenRouter, self-hosted vLLM / LiteLLM), and Ollama (local / offline). Pick the one that fits your budget and data-residency requirements.
 
 ## Quick start (Docker)
 
@@ -101,7 +101,8 @@ Early-stage rewrite consolidating an earlier multi-runtime InteLIS Insights prot
 
 ## Privacy and audit
 
-- **No patient-level data is ever sent to any LLM provider.** Only the user's question text and the InteLIS schema (table names, column descriptions, business rules) are transmitted.
+- **The LLM never connects to your database.** It is strictly a text transformer: it sees the user's question plus schema context and emits SQL text. The InteLIS Insights app — not the LLM — opens the connection, validates the SQL, and runs it. No tool-calling-with-DB-access pattern; no agentic-with-credentials pattern.
+- **No patient-level data is ever sent to any LLM provider.** Only the user's question text and the InteLIS schema (table names, column descriptions, business rules) are transmitted. Query results stay inside your infrastructure.
 - **All generated SQL is validated** before execution: SELECT-only, schema allow-list enforced, PII columns rejected.
 - **Access control is code-enforced**, not just LLM-prompted. A district-level user cannot retrieve another district's data even if the LLM is asked to.
 - **Every query is audit-logged**: who, when, what NL question, what SQL, what scope was applied, how many rows returned.
