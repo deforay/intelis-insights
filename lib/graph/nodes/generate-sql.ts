@@ -65,23 +65,23 @@ export async function generateSql(
   }
 
   const scrubbedConvo = scrubConversationBlock(state.conversationBlock);
-  const isRetry = (state.sqlRetries ?? 0) > 0;
-  const prompt =
-    isRetry && state.sql && state.error
-      ? sqlRetryUserPrompt({
-          schemaBlock: rag.schemaBlock,
-          ragJson: rag.ragJson,
-          conversationBlock: scrubbedConvo,
-          question: state.question,
-          previousSql: state.sql,
-          validationError: state.error.message,
-        })
-      : sqlGenerationUserPrompt({
-          schemaBlock: rag.schemaBlock,
-          ragJson: rag.ragJson,
-          conversationBlock: scrubbedConvo,
-          question: state.question,
-        });
+  const isRetry = state.error?.stage === "validate-query" && !!state.sql;
+  const nextRetryCount = (state.sqlRetries ?? 0) + (isRetry ? 1 : 0);
+  const prompt = isRetry
+    ? sqlRetryUserPrompt({
+        schemaBlock: rag.schemaBlock,
+        ragJson: rag.ragJson,
+        conversationBlock: scrubbedConvo,
+        question: state.question,
+        previousSql: state.sql!,
+        validationError: state.error!.message,
+      })
+    : sqlGenerationUserPrompt({
+        schemaBlock: rag.schemaBlock,
+        ragJson: rag.ragJson,
+        conversationBlock: scrubbedConvo,
+        question: state.question,
+      });
 
   const result = await generateStructured({
     schema: SqlOutputSchema,
@@ -120,6 +120,7 @@ export async function generateSql(
     return {
       sql: null,
       sqlMeta,
+      sqlRetries: nextRetryCount,
       error: {
         code: "clarification_needed",
         message: clarification.question,
@@ -133,6 +134,7 @@ export async function generateSql(
     return {
       sql: null,
       sqlMeta,
+      sqlRetries: nextRetryCount,
       error: {
         code: "empty_sql",
         message:
@@ -145,6 +147,7 @@ export async function generateSql(
   return {
     sql: object.sql.trim(),
     sqlMeta,
+    sqlRetries: nextRetryCount,
     // Clear any prior validator error so the retry path doesn't loop.
     error: null,
   };
