@@ -85,13 +85,19 @@ export function SessionsMenu() {
                   {Array.from({ length: 5 }).map((_, i) => (
                     <div
                       key={i}
-                      className="h-12 rounded-lg bg-muted/30 animate-pulse"
+                      className="h-14 rounded-lg border bg-muted/80 animate-pulse"
                     />
                   ))}
                 </div>
               ) : !sessions || sessions.length === 0 ? (
-                <div className="px-3 py-12 text-center text-sm text-muted-foreground">
-                  No conversations yet.
+                <div className="flex flex-col items-center justify-center px-3 py-16 gap-2">
+                  <div className="flex size-10 items-center justify-center rounded-full bg-muted">
+                    <MessageSquare className="size-4 text-muted-foreground" />
+                  </div>
+                  <div className="text-sm font-medium">No conversations yet</div>
+                  <div className="text-xs text-muted-foreground">
+                    Ask a question to start one.
+                  </div>
                 </div>
               ) : (
                 <ul className="flex flex-col gap-1">
@@ -101,14 +107,14 @@ export function SessionsMenu() {
                         href={`/chat/${s.id}`}
                         prefetch={false}
                         onClick={() => setOpen(false)}
-                        className="group flex items-start gap-2.5 rounded-lg px-3 py-2.5 hover:bg-muted/40 transition-colors"
+                        className="group flex items-start gap-2.5 rounded-lg border border-transparent px-3 py-2.5 hover:border-border hover:bg-muted/50 transition-colors"
                       >
                         <MessageSquare className="size-3.5 mt-0.5 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" />
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm truncate">
+                          <div className="text-sm truncate text-foreground">
                             {s.title ?? "Untitled conversation"}
                           </div>
-                          <div className="text-[10px] text-muted-foreground/70 mt-0.5">
+                          <div className="text-[10px] text-muted-foreground/80 mt-0.5">
                             {new Date(s.updatedAt).toLocaleString(undefined, {
                               dateStyle: "medium",
                               timeStyle: "short",
