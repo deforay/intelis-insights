@@ -14,7 +14,10 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "schema:export": "tsx scripts/export-schema.ts",
+    "rag:build": "tsx scripts/build-snippets.ts",
+    "rag:upsert": "tsx scripts/upsert-corpus.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.78",
