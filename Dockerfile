@@ -26,6 +26,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle ./drizzle
+# Corpus is country-specific (schema export + RAG snippets for this
+# deployment's InteLIS DB). Build the image AFTER running
+# `npm run schema:export && npm run rag:build` on the build host —
+# the resulting JSON files get baked in for runtime use.
+COPY --from=builder --chown=nextjs:nodejs /app/corpus ./corpus
 
 USER nextjs
 EXPOSE 3000
