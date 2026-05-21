@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { History, MessageSquare, X } from "lucide-react";
+import { History, MessageSquare, X, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -12,23 +12,39 @@ interface SessionItem {
   updatedAt: string;
 }
 
+type LoadState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "loaded"; sessions: SessionItem[] }
+  | { kind: "error"; message: string };
+
 export function SessionsMenu() {
   const [open, setOpen] = useState(false);
-  const [sessions, setSessions] = useState<SessionItem[] | null>(null);
-  const [loading, startLoading] = useTransition();
+  const [state, setState] = useState<LoadState>({ kind: "idle" });
 
   useEffect(() => {
-    if (!open || sessions) return;
-    startLoading(async () => {
+    if (!open) return;
+    if (state.kind === "loaded" || state.kind === "loading") return;
+    let canceled = false;
+    setState({ kind: "loading" });
+    (async () => {
       try {
         const res = await fetch("/api/v1/sessions");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        setSessions(data.sessions ?? []);
-      } catch {
-        setSessions([]);
+        if (!canceled) {
+          setState({ kind: "loaded", sessions: data.sessions ?? [] });
+        }
+      } catch (err) {
+        if (!canceled) {
+          setState({ kind: "error", message: (err as Error).message });
+        }
       }
-    });
-  }, [open, sessions]);
+    })();
+    return () => {
+      canceled = true;
+    };
+  }, [open, state.kind]);
 
   useEffect(() => {
     if (!open) return;
@@ -80,17 +96,27 @@ export function SessionsMenu() {
               </Button>
             </div>
             <div className="flex-1 overflow-y-auto px-3 py-3">
-              {loading ? (
+              {state.kind === "loading" || state.kind === "idle" ? (
                 <div className="space-y-2">
                   {Array.from({ length: 5 }).map((_, i) => (
                     <div
                       key={i}
-                      className="h-14 rounded-lg border bg-muted/80 animate-pulse"
+                      className="h-14 rounded-lg border bg-muted animate-pulse"
                     />
                   ))}
                 </div>
-              ) : !sessions || sessions.length === 0 ? (
-                <div className="flex flex-col items-center justify-center px-3 py-16 gap-2">
+              ) : state.kind === "error" ? (
+                <div className="flex flex-col items-center justify-center px-3 py-16 gap-2 text-center">
+                  <div className="flex size-10 items-center justify-center rounded-full bg-destructive/10">
+                    <AlertCircle className="size-4 text-destructive" />
+                  </div>
+                  <div className="text-sm font-medium">Couldn’t load history</div>
+                  <div className="text-xs text-muted-foreground">
+                    {state.message}
+                  </div>
+                </div>
+              ) : state.sessions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center px-3 py-16 gap-2 text-center">
                   <div className="flex size-10 items-center justify-center rounded-full bg-muted">
                     <MessageSquare className="size-4 text-muted-foreground" />
                   </div>
@@ -101,7 +127,7 @@ export function SessionsMenu() {
                 </div>
               ) : (
                 <ul className="flex flex-col gap-1">
-                  {sessions.map((s) => (
+                  {state.sessions.map((s) => (
                     <li key={s.id}>
                       <Link
                         href={`/chat/${s.id}`}
