@@ -11,11 +11,9 @@ theme:
   name: material
   language: en
   features:
-    - navigation.tabs
-    - navigation.sections
-    - navigation.expand
     - navigation.top
     - navigation.indexes
+    - navigation.instant
     - content.code.copy
     - content.code.annotate
     - content.action.edit
