@@ -11,7 +11,7 @@ import { env } from "@/lib/config/env";
  * `lib/validation/safety.ts`) provide defence in depth.
  */
 declare global {
-  // eslint-disable-next-line no-var
+   
   var __labDbPool: mysql.Pool | undefined;
 }
 
