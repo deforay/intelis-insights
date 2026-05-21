@@ -27,6 +27,10 @@ export interface AssistantTurn {
   clarificationNeeded: ClarificationRequest | null;
   accessDecision: AccessDecision | null;
   results: LabQueryResult | null;
+  /** Natural-language summary of the result. */
+  narration: string | null;
+  /** Suggested follow-up questions the user might ask next. */
+  followUps: string[];
   chart: ChartSuggestion | null;
   error: { code: string; message: string; stage: GraphStage } | null;
   traceId: string | null;
@@ -61,6 +65,8 @@ export function createAssistantTurn(): AssistantTurn {
     clarificationNeeded: null,
     accessDecision: null,
     results: null,
+    narration: null,
+    followUps: [],
     chart: null,
     error: null,
     traceId: null,

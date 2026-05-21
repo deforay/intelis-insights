@@ -55,6 +55,8 @@ export default async function ResumeChatPage({
       clarificationNeeded: null,
       accessDecision: null,
       results: (m.queryResult as LabQueryResult | null) ?? null,
+      narration: null,
+      followUps: [],
       chart: (m.chart as ChartSuggestion | null) ?? null,
       error: null,
       traceId: null,

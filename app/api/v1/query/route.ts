@@ -151,18 +151,37 @@ export async function POST(req: Request) {
   });
 }
 
-function buildAssistantContent(state: {
-  sql: string | null;
-  error: { message: string } | null;
-  results: { count: number } | null;
-}): string {
+function buildAssistantContent(state: import("@/lib/graph/state").GraphStateType): string {
   if (state.error) return `Error: ${state.error.message}`;
-  const rowsPart = state.results
-    ? `Returned ${state.results.count} row(s).`
-    : "(no rows)";
-  // Include the SQL so follow-up turns can match its filter conventions
-  // (date window, scope, exclusions). buildConversationBlock scrubs PII
-  // before this re-enters the LLM prompt.
-  const sqlPart = state.sql ? `\nSQL: ${state.sql}` : "";
-  return `${rowsPart}${sqlPart}`;
+
+  const parts: string[] = [];
+
+  // Lead with the natural-language summary if we have one.
+  if (state.narration) parts.push(state.narration);
+
+  // Result shape — useful for follow-ups even when the narration is rich.
+  if (state.results) {
+    if (state.results.count === 1 && state.results.columns.length === 1) {
+      const v = state.results.rows[0][state.results.columns[0]];
+      parts.push(`Result: ${state.results.columns[0]} = ${String(v)}`);
+    } else {
+      parts.push(
+        `Result shape: ${state.results.count} row(s) over columns [${state.results.columns.join(", ")}]`,
+      );
+    }
+  }
+
+  // The assumptions the model applied — preserve them across turns so a
+  // follow-up doesn't silently change the convention.
+  if (state.sqlMeta?.assumptions?.length) {
+    parts.push(
+      `Assumptions: ${state.sqlMeta.assumptions.map((a) => `- ${a}`).join(" ")}`,
+    );
+  }
+
+  // The SQL itself is the source of truth for filter / join conventions.
+  // buildConversationBlock scrubs PII before this re-enters the LLM prompt.
+  if (state.sql) parts.push(`SQL: ${state.sql}`);
+
+  return parts.join("\n");
 }

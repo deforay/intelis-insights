@@ -91,6 +91,7 @@ export type GraphStage =
   | "validate-access"
   | "validate-query"
   | "execute-query"
+  | "narrate-result"
   | "format-response";
 
 export interface GraphError {

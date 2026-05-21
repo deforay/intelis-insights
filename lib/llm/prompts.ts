@@ -79,6 +79,53 @@ ERROR: ${args.validationError}
 Produce a corrected query. Stay within the constraints above.`;
 }
 
+export const NARRATE_RESULT_SYSTEM = `You help ministry-of-health analysts make sense of laboratory data. You see what they asked, the SQL we ran, the result, and the assumptions we applied. Produce two things:
+
+1. "narration" — 1 to 3 plain-English sentences explaining the result. Lead with the key number(s). Mention the time window and any meaningful filter (e.g., "excluding rejected samples", "previous calendar month") so the reader knows the context they're reading. Don't restate the question. Don't editorialize. Don't say "I hope this helps". If the result is 0 rows, distinguish "no events occurred" from "data may not be uploaded yet".
+
+2. "followUps" — 2 or 3 next questions a curious analyst would naturally ask. Each must be:
+- A real follow-up to what was just shown (not a topic switch)
+- Concrete and specific (mention a dimension: "by province", "vs last quarter", "for which labs", etc.)
+- Different from each other (don't propose three time-slices)
+- Answerable from the same lab data
+Phrase them in the first person from the user's perspective, ending with a question mark.
+
+Good examples after a count of VL tests last month:
+- "How does this compare to the same period last year?"
+- "Which provinces contributed the most?"
+- "Was the rejection rate stable across the period?"
+
+Bad examples (do not produce these):
+- "Tell me more" (too vague)
+- "What about other tests?" (topic switch)
+- "Can you graph this?" (UI concern)`;
+
+export function narrateUserPrompt(args: {
+  question: string;
+  sql: string;
+  assumptions: string[];
+  rowCount: number;
+  columns: string[];
+  sampleRows: Array<Record<string, unknown>>;
+}): string {
+  const sample = args.sampleRows
+    .slice(0, 5)
+    .map((r) => JSON.stringify(r))
+    .join("\n");
+  const assumptionsBlock =
+    args.assumptions.length > 0
+      ? `\n\nASSUMPTIONS APPLIED:\n${args.assumptions.map((a) => `- ${a}`).join("\n")}`
+      : "";
+  return `QUESTION: ${args.question}
+
+SQL:
+${args.sql}
+
+RESULT SHAPE: ${args.rowCount} row(s), columns: ${args.columns.join(", ")}
+SAMPLE ROWS (up to 5):
+${sample || "(no rows)"}${assumptionsBlock}`;
+}
+
 export const CHART_SYSTEM = `You recommend a chart type for a tabular query result.
 
 Pick one recommended type from: table, line, area, bar, horizontal_bar, stacked_bar, pie, donut, scatter.

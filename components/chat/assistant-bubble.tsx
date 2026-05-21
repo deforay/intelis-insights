@@ -6,7 +6,13 @@ import { ErrorCard } from "./error-card";
 import { BentoResponse } from "./bento-response";
 import type { AssistantTurn } from "./types";
 
-export function AssistantBubble({ turn }: { turn: AssistantTurn }) {
+export function AssistantBubble({
+  turn,
+  onPickFollowUp,
+}: {
+  turn: AssistantTurn;
+  onPickFollowUp?: (question: string) => void;
+}) {
   const hasResults = !!turn.results;
   const hasError = !!turn.error;
   const hasAnyContent = hasResults || hasError;
@@ -34,7 +40,9 @@ export function AssistantBubble({ turn }: { turn: AssistantTurn }) {
       )}
 
       {/* Bento response — recomposes as data streams in */}
-      {hasResults && <BentoResponse turn={turn} />}
+      {hasResults && (
+        <BentoResponse turn={turn} onPickFollowUp={onPickFollowUp} />
+      )}
     </div>
   );
 }

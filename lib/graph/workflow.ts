@@ -30,6 +30,7 @@ import { generateSql } from "./nodes/generate-sql";
 import { validateAccess } from "./nodes/validate-access";
 import { validateQuery } from "./nodes/validate-query";
 import { executeQuery } from "./nodes/execute-query";
+import { narrateResult } from "./nodes/narrate-result";
 import { formatResponse } from "./nodes/format-response";
 import {
   afterGenerateSql,
@@ -59,6 +60,7 @@ export function buildWorkflow(checkpointer: PostgresSaver) {
     .addNode("validate-access", validateAccess)
     .addNode("validate-query", validateQuery)
     .addNode("execute-query", executeQuery)
+    .addNode("narrate-result", narrateResult)
     .addNode("format-response", formatResponse)
     .addEdge(START, "parse-question")
     .addEdge("parse-question", "retrieve-context")
@@ -76,7 +78,8 @@ export function buildWorkflow(checkpointer: PostgresSaver) {
       "generate-sql",
       "format-response",
     ])
-    .addEdge("execute-query", "format-response")
+    .addEdge("execute-query", "narrate-result")
+    .addEdge("narrate-result", "format-response")
     .addEdge("format-response", END)
     .compile({ checkpointer });
 }

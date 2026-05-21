@@ -39,6 +39,7 @@ const STAGE_KEYS: Record<string, GraphStage> = {
   "validate-access": "validate-access",
   "validate-query": "validate-query",
   "execute-query": "execute-query",
+  "narrate-result": "narrate-result",
   "format-response": "format-response",
 };
 
@@ -61,6 +62,8 @@ export async function runQuery(input: RunQueryInput): Promise<RunQueryResult> {
     sqlMeta: null,
     accessDecision: null,
     results: null,
+    narration: null,
+    followUpSuggestions: null,
     chart: null,
     error: null,
     sqlRetries: 0,
@@ -223,6 +226,13 @@ function* expandNodeEvents(
     yield { type: "access", decision: partial.accessDecision };
   }
   if (partial.results) yield { type: "results", results: partial.results };
+  if (partial.narration) {
+    yield {
+      type: "narration",
+      narration: partial.narration,
+      followUps: partial.followUpSuggestions ?? [],
+    };
+  }
   if (partial.chart) yield { type: "chart", chart: partial.chart };
   if (partial.error) {
     yield {

@@ -36,6 +36,7 @@ export type QueryEvent =
       decision: AccessDecision;
     }
   | { type: "results"; results: LabQueryResult }
+  | { type: "narration"; narration: string; followUps: string[] }
   | { type: "chart"; chart: ChartSuggestion }
   | {
       type: "error";

@@ -119,6 +119,12 @@ export function ChatClient({
             case "results":
               update({ results: event.results });
               break;
+            case "narration":
+              update({
+                narration: event.narration,
+                followUps: event.followUps,
+              });
+              break;
             case "chart":
               update({ chart: event.chart });
               break;
@@ -186,7 +192,11 @@ export function ChatClient({
                 t.role === "user" ? (
                   <UserBubble key={t.id} content={t.content} />
                 ) : (
-                  <AssistantBubble key={t.id} turn={t} />
+                  <AssistantBubble
+                    key={t.id}
+                    turn={t}
+                    onPickFollowUp={submit}
+                  />
                 ),
               )}
             </div>

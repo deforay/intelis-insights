@@ -10,6 +10,7 @@ import {
   Activity,
   Database,
   ShieldCheck,
+  Sparkles,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -25,7 +26,13 @@ import type { AssistantTurn } from "./types";
  * data has arrived and the shape of the result (KPI vs table vs
  * chart-able).
  */
-export function BentoResponse({ turn }: { turn: AssistantTurn }) {
+export function BentoResponse({
+  turn,
+  onPickFollowUp,
+}: {
+  turn: AssistantTurn;
+  onPickFollowUp?: (question: string) => void;
+}) {
   const hasChart = !!turn.chart && turn.chart.recommended !== "table";
   const hasResults = !!turn.results;
   const isKpi =
@@ -34,7 +41,27 @@ export function BentoResponse({ turn }: { turn: AssistantTurn }) {
     turn.results!.columns.length <= 2;
 
   return (
-    <div className="grid grid-cols-12 gap-3 auto-rows-max">
+    <div className="flex flex-col gap-4">
+      {turn.narration && (
+        <div className="relative rounded-2xl border bg-card/40 backdrop-blur p-5 overflow-hidden">
+          <div
+            className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent"
+          />
+          <div className="flex items-start gap-3">
+            <div className="relative shrink-0 mt-0.5">
+              <div className="absolute inset-0 rounded-full bg-primary/30 blur-md" />
+              <div className="relative flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/70 text-primary-foreground">
+                <Sparkles className="size-3.5" />
+              </div>
+            </div>
+            <p className="text-[15px] leading-relaxed text-foreground/90">
+              {turn.narration}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-12 gap-3 auto-rows-max">
       {/* Hero tile: chart, table, or KPI big-number */}
       {hasResults && (
         <BentoTile
@@ -198,6 +225,27 @@ export function BentoResponse({ turn }: { turn: AssistantTurn }) {
             )}
           </div>
         </BentoTile>
+      )}
+      </div>
+
+      {turn.followUps.length > 0 && onPickFollowUp && (
+        <div className="flex flex-col gap-2 pt-1">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            <Sparkles className="size-3" />
+            Explore next
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {turn.followUps.map((q) => (
+              <button
+                key={q}
+                onClick={() => onPickFollowUp(q)}
+                className="group rounded-full border bg-card/40 backdrop-blur px-3.5 py-1.5 text-sm text-foreground/80 hover:text-foreground hover:border-primary/40 hover:bg-card transition-all"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

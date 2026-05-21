@@ -37,6 +37,10 @@ export const GraphState = Annotation.Root({
   accessDecision: Annotation<AccessDecision | null>,
   results: Annotation<LabQueryResult | null>,
   chart: Annotation<ChartSuggestion | null>,
+  /** 1-3 sentence natural-language summary of the result. */
+  narration: Annotation<string | null>,
+  /** 2-3 suggested follow-up questions for the user to explore next. */
+  followUpSuggestions: Annotation<string[] | null>,
 
   // ── Control / error path ────────────────────────────────────────────
   error: Annotation<GraphError | null>,

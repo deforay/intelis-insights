@@ -23,6 +23,8 @@ function makeState(overrides: Partial<GraphStateType>): GraphStateType {
     sqlMeta: null,
     accessDecision: null,
     results: null,
+    narration: null,
+    followUpSuggestions: null,
     chart: null,
     error: null,
     sqlRetries: 0,
