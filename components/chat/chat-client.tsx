@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Sparkles } from "lucide-react";
 import type { QueryEvent } from "@/lib/graph/events";
 import { parseNdjsonStream } from "@/lib/client/stream";
+import { cn } from "@/lib/utils";
 import { Composer } from "./composer";
 import { UserBubble } from "./user-bubble";
 import { AssistantBubble } from "./assistant-bubble";
@@ -171,11 +172,16 @@ export function ChatClient({
         ref={scrollRef}
         className="flex-1 overflow-y-auto"
       >
-        <div className="mx-auto max-w-3xl w-full px-4 md:px-8 py-6">
+        <div
+          className={cn(
+            "mx-auto w-full px-6 md:px-10 lg:px-14 py-8",
+            isEmpty ? "max-w-5xl" : "max-w-7xl",
+          )}
+        >
           {isEmpty ? (
             <EmptyState onPick={submit} />
           ) : (
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-8">
               {turns.map((t) =>
                 t.role === "user" ? (
                   <UserBubble key={t.id} content={t.content} />
@@ -189,7 +195,12 @@ export function ChatClient({
       </div>
 
       <div className="border-t bg-background/80 backdrop-blur">
-        <div className="mx-auto max-w-3xl w-full px-4 md:px-8 py-4">
+        <div
+          className={cn(
+            "mx-auto w-full px-6 md:px-10 lg:px-14 py-4",
+            isEmpty ? "max-w-3xl" : "max-w-5xl",
+          )}
+        >
           <Composer
             value={draft}
             onChange={setDraft}

@@ -62,7 +62,7 @@ export function ChartRenderer({
       const seriesKeys = series ? distinctValues(data, series) : [yAxis];
       const pivoted = series ? pivot(data, xAxis, series, yAxis) : data;
       return (
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={380}>
           <Chart data={pivoted}>
             <CartesianGrid stroke={gridStroke} strokeDasharray="3 3" />
             <XAxis dataKey={xAxis} stroke={gridStroke} tick={tickStyle} />
@@ -90,7 +90,7 @@ export function ChartRenderer({
     case "horizontal_bar": {
       const layout = chart.recommended === "horizontal_bar" ? "vertical" : "horizontal";
       return (
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={380}>
           <BarChart data={data} layout={layout}>
             <CartesianGrid stroke={gridStroke} strokeDasharray="3 3" />
             {layout === "horizontal" ? (
@@ -121,7 +121,7 @@ export function ChartRenderer({
       const seriesKeys = series ? distinctValues(data, series) : [yAxis];
       const pivoted = series ? pivot(data, xAxis, series, yAxis) : data;
       return (
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={380}>
           <BarChart data={pivoted}>
             <CartesianGrid stroke={gridStroke} strokeDasharray="3 3" />
             <XAxis dataKey={xAxis} stroke={gridStroke} tick={tickStyle} />
@@ -144,7 +144,7 @@ export function ChartRenderer({
     case "pie":
     case "donut": {
       return (
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={380}>
           <PieChart>
             <Pie
               data={data}
@@ -167,7 +167,7 @@ export function ChartRenderer({
 
     case "scatter": {
       return (
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={380}>
           <ScatterChart>
             <CartesianGrid stroke={gridStroke} strokeDasharray="3 3" />
             <XAxis
