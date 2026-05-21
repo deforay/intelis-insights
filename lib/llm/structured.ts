@@ -9,7 +9,12 @@
 import { generateObject, type LanguageModelUsage } from "ai";
 import type { LanguageModel } from "ai";
 import type { z } from "zod";
-import { getLanguageModel, type ModelKind } from "./providers";
+import {
+  getLanguageModel,
+  getStructuredMode,
+  type ModelKind,
+  type StructuredMode,
+} from "./providers";
 
 export interface StructuredOptions<T extends z.ZodTypeAny> {
   schema: T;
@@ -19,6 +24,11 @@ export interface StructuredOptions<T extends z.ZodTypeAny> {
   prompt: string;
   modelKind?: ModelKind;
   model?: LanguageModel;
+  /**
+   * Override the per-provider default structured mode. Useful for forcing
+   * "tool" mode on models that don't reliably honour `json_schema`.
+   */
+  mode?: StructuredMode;
   temperature?: number;
   maxOutputTokens?: number;
 }
@@ -33,11 +43,13 @@ export async function generateStructured<T extends z.ZodTypeAny>(
   opts: StructuredOptions<T>,
 ): Promise<StructuredResult<z.infer<T>>> {
   const model = opts.model ?? getLanguageModel(opts.modelKind ?? "primary");
+  const mode = opts.mode ?? getStructuredMode();
   const result = await generateObject({
     model,
     schema: opts.schema,
     schemaName: opts.schemaName,
     schemaDescription: opts.schemaDescription,
+    mode,
     system: opts.system,
     prompt: opts.prompt,
     temperature: opts.temperature ?? 0,

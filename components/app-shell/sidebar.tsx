@@ -55,6 +55,7 @@ export async function Sidebar({ activeSessionId }: { activeSessionId?: string })
               <li key={s.id}>
                 <Link
                   href={`/chat/${s.id}`}
+                  prefetch={false}
                   className={cn(
                     "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground/80 hover:bg-muted hover:text-foreground transition-colors",
                     activeSessionId === s.id && "bg-muted text-foreground",

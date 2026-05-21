@@ -21,6 +21,37 @@ import { env } from "@/lib/config/env";
 
 export type ModelKind = "primary" | "fast";
 
+/**
+ * Strategy for getting structured output from the model:
+ *   - "auto": let the SDK pick (uses response_format: json_schema when
+ *             available). Right for OpenAI / Anthropic / Google /
+ *             Mistral / newer Groq models.
+ *   - "tool": wrap the schema as a forced tool call and parse from
+ *             tool args. Right for DeepSeek and other OpenAI-compatible
+ *             providers that support function calling but not
+ *             response_format: json_schema.
+ *   - "json": use response_format: json_object (no schema enforcement)
+ *             and Zod-parse the output. Most conservative — works
+ *             with Ollama and minimal OpenAI-compatible gateways.
+ */
+export type StructuredMode = "auto" | "tool" | "json";
+
+export function getStructuredMode(): StructuredMode {
+  switch (env.LLM_PROVIDER) {
+    case "openai":
+    case "anthropic":
+    case "google":
+    case "mistral":
+    case "groq":
+      return "auto";
+    case "deepseek":
+      return "tool";
+    case "openai_compatible":
+    case "ollama":
+      return "json";
+  }
+}
+
 const cache: Partial<Record<ModelKind, LanguageModel>> = {};
 
 export function getLanguageModel(kind: ModelKind = "primary"): LanguageModel {
