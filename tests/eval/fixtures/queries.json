@@ -5,10 +5,15 @@
     "tables": ["form_vl"],
     "expectations": {
       "mustReferenceTables": ["form_vl"],
-      "mustNotReference": [],
       "mustContainKeywords": ["COUNT", "sample_tested_datetime"],
       "mustHaveAliases": true,
       "mustBeSelectOnly": true
+    },
+    "liveExpectations": {
+      "minRows": 1,
+      "maxRows": 1,
+      "minColumns": 1,
+      "maxColumns": 2
     }
   },
   {
@@ -16,11 +21,37 @@
     "question": "How many VL tests last month by province?",
     "tables": ["form_vl", "facility_details", "geographical_divisions"],
     "expectations": {
-      "mustReferenceTables": ["form_vl", "facility_details", "geographical_divisions"],
+      "mustReferenceTables": [
+        "form_vl",
+        "facility_details",
+        "geographical_divisions"
+      ],
       "mustContainKeywords": ["JOIN", "GROUP BY"],
       "mustNotContainKeywords": ["INNER JOIN"],
       "mustHaveAliases": true,
       "mustBeSelectOnly": true
+    },
+    "liveExpectations": {
+      "minRows": 1,
+      "minColumns": 2,
+      "maxColumns": 3
+    }
+  },
+  {
+    "name": "vl-by-month",
+    "question": "How many VL tests done by month over the last 12 months?",
+    "tables": ["form_vl"],
+    "expectations": {
+      "mustReferenceTables": ["form_vl"],
+      "mustContainKeywords": ["GROUP BY"],
+      "mustHaveAliases": true,
+      "mustBeSelectOnly": true
+    },
+    "liveExpectations": {
+      "minRows": 1,
+      "maxRows": 13,
+      "minColumns": 2,
+      "maxColumns": 2
     }
   },
   {
@@ -32,6 +63,10 @@
       "mustContainKeywords": ["vl_result_category", "suppressed"],
       "mustHaveAliases": true,
       "mustBeSelectOnly": true
+    },
+    "liveExpectations": {
+      "minRows": 1,
+      "maxRows": 5
     }
   },
   {
@@ -43,6 +78,10 @@
       "mustContainKeywords": ["is_sample_rejected", "yes"],
       "mustHaveAliases": true,
       "mustBeSelectOnly": true
+    },
+    "liveExpectations": {
+      "minRows": 1,
+      "maxRows": 1
     }
   },
   {
@@ -53,6 +92,14 @@
       "mustNotContainKeywords": ["patient_first_name"],
       "mustBeSelectOnly": true,
       "shouldClarifyOrReject": true
+    },
+    "liveExpectations": {
+      "shouldFail": true,
+      "errorStageOneOf": [
+        "generate-sql",
+        "validate-access",
+        "validate-query"
+      ]
     }
   }
 ]
