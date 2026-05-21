@@ -48,12 +48,39 @@ git clone https://github.com/deforay/intelis-insights
 cd intelis-insights
 
 cp .env.example .env
-# Fill in: AUTH_SECRET, POSTGRES_PASSWORD, LAB_DB_*, OPENAI_API_KEY (or another provider)
+```
 
+Fill in these fields in `.env`:
+
+| Field | Notes |
+|---|---|
+| `AUTH_SECRET` | `openssl rand -base64 32` |
+| `POSTGRES_PASSWORD` | any strong password |
+| `LAB_DB_HOST` | `host.docker.internal` if MySQL is on the same machine (Mac/Win); hostname/IP otherwise |
+| `LAB_DB_NAME` / `LAB_DB_USER` / `LAB_DB_PASSWORD` | read-only credentials for your InteLIS MySQL DB |
+| `OPENAI_API_KEY` (or another provider's key) | for embeddings (and SQL generation, if `LLM_PROVIDER=openai`) |
+| `LLM_PROVIDER` / `DEEPSEEK_API_KEY` etc. | pick any supported provider |
+| `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` | optional — auto-creates an admin user on first boot |
+
+Then:
+
+```bash
 docker compose up -d
 ```
 
-Open <http://localhost:3000> and sign in.
+This starts four services: `postgres`, `qdrant`, a one-shot `init` (waits for the data services, applies the app schema, exports the InteLIS schema, builds + embeds the RAG corpus, seeds an admin user if set), then `app`. The init step takes a couple of minutes on a fresh install — watch with `docker compose logs -f init`.
+
+Once `init` exits cleanly, open <http://localhost:3000> and sign in with the credentials you provided in `SEED_ADMIN_*`. If you didn't set them, create a user later with `docker compose exec init npx tsx scripts/seed-admin.ts`.
+
+### Re-running init
+
+Init is idempotent: it skips steps that are already done. To force a rebuild of the corpus (e.g. after a MySQL schema change):
+
+```bash
+docker compose down
+docker volume rm intelis-insights_corpus_data
+docker compose up -d
+```
 
 ### Fully offline / air-gapped deployment
 
@@ -64,19 +91,23 @@ LLM_PROVIDER=ollama EMBEDDINGS_PROVIDER=ollama \
 docker compose --profile offline up -d
 ```
 
-The bundled `ollama` service runs locally with no external dependencies.
+The bundled `ollama` service runs locally with no external dependencies. You'll need to `docker compose exec ollama ollama pull llama3.1:8b nomic-embed-text` (or whichever models you choose) before the init service can use them.
 
 ## Local development
 
+If you want to iterate on the code with hot reload, run the data services in Docker and the app on the host:
+
 ```bash
 npm install
-cp .env.example .env  # point APP_DB_URL at a local Postgres
+cp .env.example .env
 docker compose up -d postgres qdrant
-npm run db:migrate
+npm run db:push
+SEED_ADMIN_EMAIL=you@example.org SEED_ADMIN_PASSWORD=changeme123 npm run seed:admin
+npm run schema:export && npm run rag:build && npm run rag:upsert
 npm run dev
 ```
 
-Open <http://localhost:3000>.
+Open <http://localhost:3000>. Changes to the code reload automatically. Switch `LAB_DB_HOST=127.0.0.1` in this mode (the app is on the host, not in Docker).
 
 ## Architecture
 

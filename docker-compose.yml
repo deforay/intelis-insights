@@ -1,9 +1,12 @@
 # InteLIS Insights — local / on-prem stack.
 #
-# This compose file brings up the app + its own state (Postgres) + the vector
-# DB (Qdrant). The existing InteLIS MySQL database is NOT included here — it
-# runs wherever the country's InteLIS deployment already lives. The `app`
-# service connects to it via LAB_DB_HOST in your .env.
+# Brings up the app + its own state (Postgres) + the vector DB (Qdrant) +
+# a one-shot `init` container that applies migrations, generates the RAG
+# corpus, and (optionally) seeds an admin user. The existing InteLIS
+# MySQL database is NOT included here — it runs wherever the country's
+# InteLIS deployment already lives. Services connect to it via
+# LAB_DB_HOST in your .env (on macOS / Windows Docker Desktop, use
+# `host.docker.internal` to reach a MySQL on the host).
 #
 # Optional profiles:
 #   --profile offline       adds Ollama for fully air-gapped LLM + embeddings
@@ -11,13 +14,76 @@
 #
 # Usage:
 #   cp .env.example .env       # fill in LAB_DB_* and one LLM provider
-#   docker compose up -d
+#   docker compose up -d       # init runs once, then app starts
+
+x-app-env: &app-env
+  NODE_ENV: production
+  AUTH_SECRET: ${AUTH_SECRET}
+  AUTH_URL: ${AUTH_URL:-http://localhost:3000}
+  APP_DB_URL: postgres://intelis:${POSTGRES_PASSWORD}@postgres:5432/intelis_insights
+  LAB_DB_HOST: ${LAB_DB_HOST}
+  LAB_DB_PORT: ${LAB_DB_PORT:-3306}
+  LAB_DB_NAME: ${LAB_DB_NAME}
+  LAB_DB_USER: ${LAB_DB_USER}
+  LAB_DB_PASSWORD: ${LAB_DB_PASSWORD}
+  QDRANT_URL: http://qdrant:6333
+  QDRANT_API_KEY: ${QDRANT_API_KEY:-}
+  QDRANT_COLLECTION: ${QDRANT_COLLECTION:-intelis_insights}
+  LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+  LLM_MODEL: ${LLM_MODEL:-gpt-4o}
+  LLM_MODEL_FAST: ${LLM_MODEL_FAST:-gpt-4o-mini}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY:-}
+  MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+  DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+  GROQ_API_KEY: ${GROQ_API_KEY:-}
+  OPENAI_COMPATIBLE_BASE_URL: ${OPENAI_COMPATIBLE_BASE_URL:-}
+  OPENAI_COMPATIBLE_API_KEY: ${OPENAI_COMPATIBLE_API_KEY:-}
+  OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434/v1}
+  EMBEDDINGS_PROVIDER: ${EMBEDDINGS_PROVIDER:-openai}
+  EMBEDDINGS_MODEL: ${EMBEDDINGS_MODEL:-text-embedding-3-small}
+  LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+  LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+  LANGFUSE_HOST: ${LANGFUSE_HOST:-}
 
 services:
+  # One-shot bootstrap. Waits for postgres + qdrant, applies the app
+  # schema, generates corpus/schema.json + corpus/snippets.jsonl,
+  # upserts into Qdrant, and seeds an admin user (when
+  # SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD are set). Idempotent — safe
+  # to re-run. Exits 0 on success; `app` waits on that.
+  init:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: init
+    image: ghcr.io/intelis/intelis-insights-init:latest
+    container_name: intelis-insights-init
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    environment:
+      <<: *app-env
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      SEED_ADMIN_NAME: ${SEED_ADMIN_NAME:-}
+    volumes:
+      - corpus_data:/app/corpus
+    # If you have host-side MySQL on macOS / Windows Docker Desktop and
+    # set LAB_DB_HOST=host.docker.internal, this hostname resolves to
+    # the host. On Linux, uncomment the extra_hosts block below.
+    # extra_hosts:
+    #   - "host.docker.internal:host-gateway"
+
   app:
     build:
       context: .
       dockerfile: Dockerfile
+      target: runner
     image: ghcr.io/intelis/intelis-insights:latest
     container_name: intelis-insights-app
     restart: unless-stopped
@@ -26,37 +92,16 @@ services:
         condition: service_healthy
       qdrant:
         condition: service_started
+      init:
+        condition: service_completed_successfully
     ports:
       - "${APP_PORT:-3000}:3000"
     environment:
-      NODE_ENV: production
-      AUTH_SECRET: ${AUTH_SECRET}
-      AUTH_URL: ${AUTH_URL:-http://localhost:3000}
-      APP_DB_URL: postgres://intelis:${POSTGRES_PASSWORD}@postgres:5432/intelis_insights
-      LAB_DB_HOST: ${LAB_DB_HOST}
-      LAB_DB_PORT: ${LAB_DB_PORT:-3306}
-      LAB_DB_NAME: ${LAB_DB_NAME}
-      LAB_DB_USER: ${LAB_DB_USER}
-      LAB_DB_PASSWORD: ${LAB_DB_PASSWORD}
-      QDRANT_URL: http://qdrant:6333
-      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-intelis_insights}
-      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
-      LLM_MODEL: ${LLM_MODEL:-gpt-4o}
-      LLM_MODEL_INTENT: ${LLM_MODEL_INTENT:-gpt-4o-mini}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY:-}
-      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
-      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
-      GROQ_API_KEY: ${GROQ_API_KEY:-}
-      OPENAI_COMPATIBLE_BASE_URL: ${OPENAI_COMPATIBLE_BASE_URL:-}
-      OPENAI_COMPATIBLE_API_KEY: ${OPENAI_COMPATIBLE_API_KEY:-}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434/v1}
-      EMBEDDINGS_PROVIDER: ${EMBEDDINGS_PROVIDER:-openai}
-      EMBEDDINGS_MODEL: ${EMBEDDINGS_MODEL:-text-embedding-3-small}
-      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
-      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
-      LANGFUSE_HOST: ${LANGFUSE_HOST:-}
+      <<: *app-env
+    volumes:
+      - corpus_data:/app/corpus:ro
+    # extra_hosts:
+    #   - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
       interval: 30s
@@ -72,9 +117,9 @@ services:
       POSTGRES_USER: intelis
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: intelis_insights
-    # Host port mapping so `npm run dev` (on host) can reach Postgres at
-    # localhost:5432 and run drizzle-kit push / seed scripts. Inside the
-    # compose network, services still use `postgres:5432`.
+    # Host port mapping so dev tools (drizzle-kit studio, psql) can
+    # reach Postgres at localhost:5432. Inside the compose network,
+    # services still use `postgres:5432`. Bound to loopback only.
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
@@ -89,8 +134,7 @@ services:
     image: qdrant/qdrant:v1.18.0
     container_name: intelis-insights-qdrant
     restart: unless-stopped
-    # Same rationale: lets `npm run rag:upsert` (on host) reach Qdrant
-    # at localhost:6333. The gRPC port is left internal.
+    # Loopback-only host mapping so dev tools can reach Qdrant directly.
     ports:
       - "127.0.0.1:6333:6333"
     volumes:
@@ -107,4 +151,5 @@ services:
 volumes:
   postgres_data:
   qdrant_data:
+  corpus_data:
   ollama_data:
