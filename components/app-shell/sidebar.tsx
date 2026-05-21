@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, MessageSquare, FlaskConical, Users } from "lucide-react";
+import { Plus, MessageSquare, FlaskConical, Users, ScrollText } from "lucide-react";
 import { auth } from "@/auth";
 import { listSessions } from "@/lib/chat/sessions";
 import { buttonVariants } from "@/components/ui/button";
@@ -75,7 +75,12 @@ export async function Sidebar({ activeSessionId }: { activeSessionId?: string })
       {session?.user?.role === "admin" && (
         <>
           <Separator />
-          <div className="px-2 py-2">
+          <div className="flex items-center px-4 pt-3 pb-1">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              Admin
+            </span>
+          </div>
+          <div className="px-2 pb-2 flex flex-col gap-0.5">
             <Link
               href="/admin/users"
               prefetch={false}
@@ -83,6 +88,14 @@ export async function Sidebar({ activeSessionId }: { activeSessionId?: string })
             >
               <Users className="size-3.5 shrink-0 text-muted-foreground" />
               Users
+            </Link>
+            <Link
+              href="/admin/audit"
+              prefetch={false}
+              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground/80 hover:bg-muted hover:text-foreground transition-colors"
+            >
+              <ScrollText className="size-3.5 shrink-0 text-muted-foreground" />
+              Audit log
             </Link>
           </div>
         </>
