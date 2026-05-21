@@ -8,16 +8,16 @@ For a step-by-step picture of what happens when a user asks a question, see [How
 
 ```mermaid
 flowchart LR
-  subgraph App["Next.js app (one Node process)"]
-    UI["Web UI<br/>React Server Components"]
-    API["HTTP API<br/>app/api/v1/**"]
-    Graph["LangGraph workflow<br/>lib/graph/**"]
+  subgraph App["Next.js 16 app (one Node 22 process)"]
+    UI["Web UI<br/>React Server Components<br/>shadcn/ui · Tailwind CSS v4 · Recharts"]
+    API["HTTP API<br/>Next.js Route Handlers<br/>app/api/v1/**"]
+    Graph["Workflow<br/>LangGraph.js + Vercel AI SDK<br/>lib/graph/**"]
     UI --> API
     API --> Graph
   end
 
   Qdrant[("Qdrant<br/>vector DB")]
-  Postgres[("Postgres<br/>users · sessions · audit")]
+  Postgres[("PostgreSQL + Drizzle ORM<br/>users · sessions · audit")]
   MySQL[("InteLIS MySQL<br/>read-only")]
   LF[("LangFuse<br/>optional traces")]
   Provider[/"LLM provider<br/>(OpenAI · Anthropic · Google ·<br/>Mistral · DeepSeek · Groq · Ollama · …)"/]
@@ -28,6 +28,25 @@ flowchart LR
   Graph -.-> LF
   Graph --> Provider
 ```
+
+### Stack
+
+Every load-bearing component is an industry-standard, permissively-licensed, FOSS project with an active maintainer community. No proprietary runtime, no SaaS dependency, no obscure framework that ties the codebase to one vendor or one contributor. A typical full-stack TypeScript engineer can be productive on day one.
+
+| Concern | Choice | Why this, not the alternative |
+|---|---|---|
+| App framework | [Next.js 16](https://nextjs.org) (App Router) | Most widely deployed React framework. Huge talent pool. Vercel-led but fully self-hostable. |
+| Workflow engine | [LangGraph.js](https://langchain-ai.github.io/langgraphjs/) | The de facto graph runtime for agentic LLM apps; checkpointing, retries, and observability built in. |
+| LLM provider layer | [Vercel AI SDK](https://sdk.vercel.ai) | One API across every major provider — swap OpenAI / Anthropic / Google / local without code changes. |
+| Vector DB | [Qdrant](https://qdrant.tech) | Production-grade, Apache-2.0, runs as a single container. Self-hosted; no per-vector pricing. |
+| Auth | [Auth.js v5](https://authjs.dev) | Standard for Next.js auth; supports email/password today, SSO/SAML when ministries need it. |
+| App database | [PostgreSQL](https://www.postgresql.org) + [Drizzle ORM](https://orm.drizzle.team) | The default boring choice. Every operator already knows how to run, back up, and monitor it. |
+| UI | [shadcn/ui](https://ui.shadcn.com) + [Tailwind CSS v4](https://tailwindcss.com) | Copy-in components, no UI-library lock-in. Themeable per deployment. |
+| Charts | [Recharts](https://recharts.org) | Composable React charts; renders in RSC; no commercial licence. |
+| Observability | [LangFuse](https://langfuse.com) | Self-hostable LLM observability. Prompts, costs, latency, eval scores — all in one place. |
+| Runtime | Node 22 LTS | Long-term support, broadly available in every cloud and on-prem environment. |
+
+The combined effect: a country IT team operates four containers (app, init, Postgres, Qdrant) — all recognisable — and depends on zero hosted services beyond the LLM endpoint they choose.
 
 !!! info "External boundary"
     The InteLIS MySQL database is the country's live, operational lab system. We are a **read-only consumer**. The credentials in `LAB_DB_*` should be granted `SELECT` only. This service never bundles, replicates, replaces, or migrates lab data.
@@ -92,17 +111,17 @@ stateDiagram-v2
 
 ## What runs where
 
-| Concern | Where it lives | Notes |
+| Concern | Where it lives | Built on |
 |---|---|---|
-| Web UI | `app/(app)/**` | React Server Components, streamed to the browser. |
-| HTTP API | `app/api/v1/**` | One streaming endpoint for queries (`/api/v1/query`); REST for sessions and admin. |
-| Workflow | `lib/graph/**` | Nodes, state, routing, checkpointer. |
-| Prompts + provider switch | `lib/llm/**` | OpenAI / Anthropic / Google / Mistral / DeepSeek / Groq / OpenAI-compatible / Ollama. |
+| Web UI | `app/(app)/**` | Next.js 16 React Server Components, shadcn/ui, Tailwind, Recharts. |
+| HTTP API | `app/api/v1/**` | Next.js Route Handlers. One streaming endpoint for queries (`/api/v1/query`); REST for sessions and admin. |
+| Workflow | `lib/graph/**` | LangGraph.js. Nodes, state, routing, Postgres-backed checkpointer. |
+| Prompts + provider switch | `lib/llm/**` | Vercel AI SDK across OpenAI / Anthropic / Google / Mistral / DeepSeek / Groq / OpenAI-compatible / Ollama. |
 | RAG client | `lib/rag/**` | Qdrant + embeddings + the schema loader. |
-| Safety + RBAC | `lib/validation/**` | SQL validator + AST-based access control. |
+| Safety + RBAC | `lib/validation/**` | SQL validator + AST-based access control (custom, ~600 LOC). |
 | Auth | `auth.ts`, `lib/auth/**` | Auth.js v5 with email/password. |
-| Domain knowledge | `lib/config/business-rules.ts`, `lib/config/field-guide.ts` | Ported from the retired PHP. The load-bearing IP. |
-| Container bootstrap | `scripts/init.ts` | Runs once before the app starts: migrations, RAG corpus, admin seed. |
+| Domain knowledge | `lib/config/business-rules.ts`, `lib/config/field-guide.ts` | Plain TypeScript modules. Ported from the retired PHP. The load-bearing IP. |
+| Container bootstrap | `scripts/init.ts` | One-shot Node script: Drizzle migrations, RAG corpus ingest, admin seed. |
 
 ## Where state lives
 
