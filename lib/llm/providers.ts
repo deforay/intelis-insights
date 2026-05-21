@@ -57,28 +57,28 @@ function buildModel(modelId: string): LanguageModel {
         baseURL: "https://api.deepseek.com/v1",
         apiKey: env.DEEPSEEK_API_KEY!,
       });
-      return provider(modelId);
+      return provider.chat(modelId);
     }
     case "groq": {
       const provider = createOpenAI({
         baseURL: "https://api.groq.com/openai/v1",
         apiKey: env.GROQ_API_KEY!,
       });
-      return provider(modelId);
+      return provider.chat(modelId);
     }
     case "openai_compatible": {
       const provider = createOpenAI({
         baseURL: env.OPENAI_COMPATIBLE_BASE_URL!,
         apiKey: env.OPENAI_COMPATIBLE_API_KEY!,
       });
-      return provider(modelId);
+      return provider.chat(modelId);
     }
     case "ollama": {
       const provider = createOpenAI({
         baseURL: env.OLLAMA_BASE_URL,
         apiKey: "ollama",
       });
-      return provider(modelId);
+      return provider.chat(modelId);
     }
   }
 }
