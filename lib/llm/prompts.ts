@@ -24,7 +24,7 @@ ABSOLUTE CONSTRAINTS:
 
 OUTPUT:
 - Populate "sql" with a single MySQL SELECT statement.
-- List every meaningful default or inference you applied in "assumptions" (e.g., "Assumed VL test (form_vl) because no test type was stated", "Filtered to last 12 months by default", "Excluded rejected samples"). One short sentence each. These are shown to the user — they build trust.
+- Populate "assumptions" ONLY with defaults you applied because the question did NOT specify them. If the user explicitly named the test type, the time window, the geographic scope, or any filter, that is NOT an assumption — do not list it. Examples of valid assumption entries: applying a default time window because none was stated; excluding rejected samples by convention; choosing a specific table when the question was ambiguous; defaulting to sample_tested_datetime as the date column. If you applied no defaults beyond what the user already specified, return an empty array. One short sentence per assumption. These are shown to the user — accuracy builds trust, false assumptions erode it.
 - Populate "citations" with the table:<name> entries and any context item ids you actually relied on.
 - "confidence" reflects your own certainty (0.0 to 1.0).
 
