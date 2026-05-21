@@ -72,6 +72,11 @@ services:
       POSTGRES_USER: intelis
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: intelis_insights
+    # Host port mapping so `npm run dev` (on host) can reach Postgres at
+    # localhost:5432 and run drizzle-kit push / seed scripts. Inside the
+    # compose network, services still use `postgres:5432`.
+    ports:
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -84,6 +89,10 @@ services:
     image: qdrant/qdrant:v1.18.0
     container_name: intelis-insights-qdrant
     restart: unless-stopped
+    # Same rationale: lets `npm run rag:upsert` (on host) reach Qdrant
+    # at localhost:6333. The gRPC port is left internal.
+    ports:
+      - "127.0.0.1:6333:6333"
     volumes:
       - qdrant_data:/qdrant/storage
 
