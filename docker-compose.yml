@@ -59,6 +59,7 @@ services:
       dockerfile: Dockerfile
       target: init
     image: ghcr.io/intelis/intelis-insights-init:latest
+    pull_policy: build
     container_name: intelis-insights-init
     restart: "no"
     depends_on:
@@ -85,6 +86,7 @@ services:
       dockerfile: Dockerfile
       target: runner
     image: ghcr.io/intelis/intelis-insights:latest
+    pull_policy: build
     container_name: intelis-insights-app
     restart: unless-stopped
     depends_on:
