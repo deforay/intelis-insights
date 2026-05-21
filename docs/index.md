@@ -20,23 +20,13 @@ You point it at your existing InteLIS MySQL database (read-only). Then:
 !!! success "Privacy by architecture"
     **No patient identifiers are ever sent to the LLM.** The LLM never holds a database connection. Only the user's question and the database schema are transmitted; results stay in your infrastructure.
 
-## The stack
+## Contents
 
-Every component is recognisable, FOSS, and JavaScript / TypeScript.
-
-| Concern | Choice |
-|---|---|
-| App framework | [Next.js 16](https://nextjs.org) (App Router) |
-| Workflow engine | [LangGraph.js](https://langchain-ai.github.io/langgraphjs/) |
-| LLM provider layer | [Vercel AI SDK](https://sdk.vercel.ai) |
-| Vector DB | [Qdrant](https://qdrant.tech) |
-| Auth | [Auth.js v5](https://authjs.dev) |
-| App database | [PostgreSQL](https://www.postgresql.org) + [Drizzle ORM](https://orm.drizzle.team) |
-| UI | [shadcn/ui](https://ui.shadcn.com) + [Tailwind CSS v4](https://tailwindcss.com) |
-| Charts | [Recharts](https://recharts.org) |
-| Observability | [LangFuse](https://langfuse.com) (self-hostable) |
-| Runtime | Node 22 LTS |
-
-## Project status
-
-Early-stage rewrite consolidating an earlier multi-runtime InteLIS Insights prototype (PHP + Python + JS) into a single Next.js application. See the [implementation plan](plan.md) for current progress, the explicit list of known gaps, and the v2 roadmap.
+- [Getting started](getting-started.md) — Docker Compose, an existing InteLIS database, one provider key.
+- [Configuration](configuration.md) — Every environment variable, what it does, and which provider needs what.
+- [Architecture](architecture.md) — The stack, the components, and how they fit together.
+- [Query flow](query-flow.md) — How a question becomes a chart, step by step.
+- [Privacy & RBAC](privacy-and-rbac.md) — How patient data stays safe; how district / province / national tiers are enforced.
+- [LLM providers](llm-providers.md) — Supported providers (OpenAI, Anthropic, Google, Mistral, DeepSeek, Groq, Ollama) and how to pick.
+- [Contributing](contributing.md) — All TypeScript / JavaScript. Built to be easy to read, easy to extend.
+- [Implementation plan](plan.md) — Current progress, known gaps, v2 roadmap.
