@@ -79,6 +79,7 @@ nav:
   - Getting started: getting-started.md
   - Configuration: configuration.md
   - Architecture: architecture.md
+  - Query flow: query-flow.md
   - Privacy & RBAC: privacy-and-rbac.md
   - LLM providers: llm-providers.md
   - Contributing: contributing.md

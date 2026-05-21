@@ -20,44 +20,6 @@ You point it at your existing InteLIS MySQL database (read-only). Then:
 !!! success "Privacy by architecture"
     **No patient identifiers are ever sent to the LLM.** The LLM never holds a database connection. Only the user's question and the database schema are transmitted; results stay in your infrastructure.
 
-## Choose your path
-
-<div class="grid cards" markdown>
-
--   :material-rocket-launch:{ .lg .middle } **Get started in 5 minutes**
-
-    ---
-
-    Docker Compose, an existing InteLIS database, one provider key.
-
-    [:octicons-arrow-right-24: Getting started](getting-started.md)
-
--   :material-cog:{ .lg .middle } **Configuration reference**
-
-    ---
-
-    Every environment variable, what it does, and which provider needs what.
-
-    [:octicons-arrow-right-24: Configuration](configuration.md)
-
--   :material-shield-lock:{ .lg .middle } **Privacy & RBAC**
-
-    ---
-
-    How patient data stays safe; how district / province / national tiers are enforced in code.
-
-    [:octicons-arrow-right-24: Privacy & RBAC](privacy-and-rbac.md)
-
--   :material-source-branch:{ .lg .middle } **Contribute**
-
-    ---
-
-    All TypeScript / JavaScript. Built to be easy to read, easy to extend.
-
-    [:octicons-arrow-right-24: Contributing](contributing.md)
-
-</div>
-
 ## The stack
 
 Every component is recognisable, FOSS, and JavaScript / TypeScript.
