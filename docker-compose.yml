@@ -1,0 +1,96 @@
+# InteLIS Insights — local / on-prem stack.
+#
+# This compose file brings up the app + its own state (Postgres) + the vector
+# DB (Qdrant). The existing InteLIS MySQL database is NOT included here — it
+# runs wherever the country's InteLIS deployment already lives. The `app`
+# service connects to it via LAB_DB_HOST in your .env.
+#
+# Optional profiles:
+#   --profile offline       adds Ollama for fully air-gapped LLM + embeddings
+#   --profile observability adds self-hosted LangFuse
+#
+# Usage:
+#   cp .env.example .env       # fill in LAB_DB_* and one LLM provider
+#   docker compose up -d
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ghcr.io/intelis/intelis-insights:latest
+    container_name: intelis-insights-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      AUTH_SECRET: ${AUTH_SECRET}
+      AUTH_URL: ${AUTH_URL:-http://localhost:3000}
+      APP_DB_URL: postgres://intelis:${POSTGRES_PASSWORD}@postgres:5432/intelis_insights
+      LAB_DB_HOST: ${LAB_DB_HOST}
+      LAB_DB_PORT: ${LAB_DB_PORT:-3306}
+      LAB_DB_NAME: ${LAB_DB_NAME}
+      LAB_DB_USER: ${LAB_DB_USER}
+      LAB_DB_PASSWORD: ${LAB_DB_PASSWORD}
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-intelis_insights}
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o}
+      LLM_MODEL_INTENT: ${LLM_MODEL_INTENT:-gpt-4o-mini}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434/v1}
+      EMBEDDINGS_PROVIDER: ${EMBEDDINGS_PROVIDER:-openai}
+      EMBEDDINGS_MODEL: ${EMBEDDINGS_MODEL:-text-embedding-3-small}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      LANGFUSE_HOST: ${LANGFUSE_HOST:-}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: intelis-insights-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: intelis
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: intelis_insights
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U intelis -d intelis_insights"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  qdrant:
+    image: qdrant/qdrant:v1.18.0
+    container_name: intelis-insights-qdrant
+    restart: unless-stopped
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  ollama:
+    profiles: ["offline"]
+    image: ollama/ollama:latest
+    container_name: intelis-insights-ollama
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+
+volumes:
+  postgres_data:
+  qdrant_data:
+  ollama_data:
