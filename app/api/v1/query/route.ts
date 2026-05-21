@@ -150,6 +150,12 @@ function buildAssistantContent(state: {
   results: { count: number } | null;
 }): string {
   if (state.error) return `Error: ${state.error.message}`;
-  if (!state.results) return state.sql ?? "(no response)";
-  return `Returned ${state.results.count} row(s).`;
+  const rowsPart = state.results
+    ? `Returned ${state.results.count} row(s).`
+    : "(no rows)";
+  // Include the SQL so follow-up turns can match its filter conventions
+  // (date window, scope, exclusions). buildConversationBlock scrubs PII
+  // before this re-enters the LLM prompt.
+  const sqlPart = state.sql ? `\nSQL: ${state.sql}` : "";
+  return `${rowsPart}${sqlPart}`;
 }
