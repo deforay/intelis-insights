@@ -160,14 +160,11 @@ flowchart LR
 
 ## Why a single app, not a service mesh
 
-We considered splitting the LLM workflow into a dedicated backend service and keeping Next.js as a thin UI. We chose not to:
+We considered splitting the LLM workflow into a dedicated backend service and keeping Next.js as a thin UI. We chose not to, for three reasons:
 
-- One framework, one process, one Docker image. New contributors are productive on day one.
-- Ministry IT teams see one service to operate.
-- API and UI share types end-to-end with no shared-package step.
-- React Server Components + a streaming `Response` handle the 10–15 second graph run with live progress updates.
-
-Independent scaling isn't a real need at one-deployment-per-country. Operator simplicity is.
+- **One thing to operate.** Ministry IT teams already run a lot. One Docker image, one process, one log stream — not a polyglot mesh of services to monitor.
+- **One thing to hire for.** End-to-end TypeScript. The same engineer who fixes the UI also fixes the workflow; no Python ↔ Node handoff, no shared-package build step.
+- **No real scaling pressure.** One deployment per country, single-digit concurrent analysts. Operator simplicity beats independent scaling every time at this size.
 
 ## See also
 
