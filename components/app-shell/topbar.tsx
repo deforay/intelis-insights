@@ -7,6 +7,7 @@ import {
   ScrollText,
   Users,
   FlaskConical,
+  Bookmark,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -72,6 +73,16 @@ export function Topbar({
       {!title && <div className="flex-1" />}
 
       <Link
+        href="/dashboard"
+        className={cn(
+          buttonVariants({ variant: "ghost", size: "sm" }),
+          "gap-1.5",
+        )}
+      >
+        Dashboard
+      </Link>
+
+      <Link
         href="/chat"
         className={cn(
           buttonVariants({ variant: "outline", size: "sm" }),
@@ -115,6 +126,15 @@ export function Topbar({
               </span>
             </div>
           </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            render={
+              <Link href="/reports">
+                <Bookmark className="size-3.5" />
+                Reports
+              </Link>
+            }
+          />
           {isAdmin && (
             <>
               <DropdownMenuSeparator />

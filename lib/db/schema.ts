@@ -85,6 +85,40 @@ export const chatMessages = pgTable(
   (t) => [index("idx_chat_messages_session_id").on(t.sessionId)],
 );
 
+export const reports = pgTable(
+  "reports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    /** The natural-language question this report represents. */
+    question: text("question").notNull(),
+    /** The most recently generated SQL for this report (used for refresh). */
+    sql: text("sql"),
+    /** The ChartSuggestion from the last run. */
+    chartConfig: jsonb("chart_config"),
+    /** Snapshot of last execution for fast preview without re-running. */
+    lastSummary: jsonb("last_summary"),
+    pinned: integer("pinned").notNull().default(0),
+    lastRunAt: timestamp("last_run_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("idx_reports_user_id").on(t.userId),
+    index("idx_reports_pinned").on(t.userId, t.pinned),
+  ],
+);
+
+export type Report = typeof reports.$inferSelect;
+export type NewReport = typeof reports.$inferInsert;
+
 export const auditLog = pgTable(
   "audit_log",
   {

@@ -196,17 +196,20 @@ export function ChatClient({
             <EmptyState onPick={submit} />
           ) : (
             <div className="flex flex-col gap-8">
-              {turns.map((t) =>
-                t.role === "user" ? (
-                  <UserBubble key={t.id} content={t.content} />
-                ) : (
+              {turns.map((t, idx) => {
+                if (t.role === "user")
+                  return <UserBubble key={t.id} content={t.content} />;
+                const prior = turns[idx - 1];
+                const q = prior?.role === "user" ? prior.content : undefined;
+                return (
                   <AssistantBubble
                     key={t.id}
                     turn={t}
+                    question={q}
                     onPickFollowUp={submit}
                   />
-                ),
-              )}
+                );
+              })}
             </div>
           )}
         </div>

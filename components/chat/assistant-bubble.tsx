@@ -9,9 +9,12 @@ import type { AssistantTurn } from "./types";
 
 export function AssistantBubble({
   turn,
+  question,
   onPickFollowUp,
 }: {
   turn: AssistantTurn;
+  /** The user question that produced this turn. Threaded down for save-to-dashboard. */
+  question?: string;
   onPickFollowUp?: (question: string) => void;
 }) {
   const hasResults = !!turn.results;
@@ -21,18 +24,15 @@ export function AssistantBubble({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Streaming progress — only visible until something arrives */}
       {(turn.isStreaming || Object.keys(turn.stages).length > 0) &&
         !hasAnyContent && (
           <ProgressSteps stages={turn.stages} isStreaming={turn.isStreaming} />
         )}
 
-      {/* Streaming skeleton while we wait for results */}
       {turn.isStreaming && !hasAnyContent && (
         <Skeleton className="h-[180px] w-full rounded-2xl" />
       )}
 
-      {/* Clarification — model asked back. Friendly card, not red banner. */}
       {hasClarification && turn.clarification && (
         <ClarificationCard
           question={turn.clarification.question}
@@ -40,7 +40,6 @@ export function AssistantBubble({
         />
       )}
 
-      {/* Error — something actually broke */}
       {hasError && turn.error && (
         <ErrorCard
           code={turn.error.code}
@@ -49,9 +48,12 @@ export function AssistantBubble({
         />
       )}
 
-      {/* Bento response — recomposes as data streams in */}
       {hasResults && (
-        <BentoResponse turn={turn} onPickFollowUp={onPickFollowUp} />
+        <BentoResponse
+          turn={turn}
+          question={question}
+          onPickFollowUp={onPickFollowUp}
+        />
       )}
     </div>
   );

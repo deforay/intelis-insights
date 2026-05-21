@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ChartRenderer } from "@/components/chart/chart-renderer";
 import { ResultTable } from "./result-table";
+import { SaveReportButton } from "./save-report-button";
 import type { AssistantTurn } from "./types";
 
 /**
@@ -28,9 +29,12 @@ import type { AssistantTurn } from "./types";
  */
 export function BentoResponse({
   turn,
+  question,
   onPickFollowUp,
 }: {
   turn: AssistantTurn;
+  /** The user question that produced this turn — used for save-to-dashboard. */
+  question?: string;
   onPickFollowUp?: (question: string) => void;
 }) {
   const hasChart = !!turn.chart && turn.chart.recommended !== "table";
@@ -228,25 +232,34 @@ export function BentoResponse({
       )}
       </div>
 
-      {turn.followUps.length > 0 && onPickFollowUp && (
-        <div className="flex flex-col gap-2 pt-1">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            <Sparkles className="size-3" />
-            Explore next
+      <div className="flex items-center justify-between gap-3 pt-1">
+        {turn.followUps.length > 0 && onPickFollowUp ? (
+          <div className="flex flex-col gap-2 flex-1 min-w-0">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <Sparkles className="size-3" />
+              Explore next
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {turn.followUps.map((q) => (
+                <button
+                  key={q}
+                  onClick={() => onPickFollowUp(q)}
+                  className="group rounded-full border bg-card/40 backdrop-blur px-3.5 py-1.5 text-sm text-foreground/80 hover:text-foreground hover:border-primary/40 hover:bg-card transition-all"
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {turn.followUps.map((q) => (
-              <button
-                key={q}
-                onClick={() => onPickFollowUp(q)}
-                className="group rounded-full border bg-card/40 backdrop-blur px-3.5 py-1.5 text-sm text-foreground/80 hover:text-foreground hover:border-primary/40 hover:bg-card transition-all"
-              >
-                {q}
-              </button>
-            ))}
+        ) : (
+          <div className="flex-1" />
+        )}
+        {question && (
+          <div className="shrink-0">
+            <SaveReportButton turn={turn} questionFromUserTurn={question} />
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
