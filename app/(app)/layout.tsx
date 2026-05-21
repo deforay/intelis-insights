@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { Sidebar } from "@/components/app-shell/sidebar";
 
 export default async function AppShellLayout({
   children,
@@ -11,9 +10,8 @@ export default async function AppShellLayout({
   if (!session?.user) redirect("/login");
 
   return (
-    <div className="flex flex-1 h-screen overflow-hidden">
-      <Sidebar />
-      <div className="flex flex-1 flex-col min-w-0">{children}</div>
+    <div className="flex flex-1 h-screen flex-col overflow-hidden">
+      {children}
     </div>
   );
 }
