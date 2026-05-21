@@ -19,20 +19,26 @@ async function loginAction(formData: FormData) {
 
 export default function LoginPage() {
   return (
-    <div className="flex flex-1 items-center justify-center p-6 bg-muted/30">
-      <div className="w-full max-w-sm">
+    <div className="relative flex flex-1 items-center justify-center p-6 overflow-hidden">
+      <div className="absolute inset-0 grid-bg pointer-events-none" />
+      <div className="relative w-full max-w-sm">
         <div className="flex items-center justify-center mb-6">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-            <FlaskConical className="size-5" />
+          <div className="relative">
+            <div className="absolute inset-0 rounded-2xl bg-primary/30 blur-xl" />
+            <div className="relative flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground brand-glow">
+              <FlaskConical className="size-6" />
+            </div>
           </div>
         </div>
         <div className="text-center mb-6">
-          <h1 className="text-xl font-semibold">InteLIS Insights</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h1 className="text-2xl font-semibold tracking-tight bg-gradient-to-b from-foreground to-foreground/70 bg-clip-text text-transparent">
+            InteLIS Insights
+          </h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">
             Natural-language analytics for laboratory data
           </p>
         </div>
-        <div className="rounded-xl border bg-card p-6 shadow-sm">
+        <div className="rounded-2xl border bg-card/80 backdrop-blur p-6 shadow-xl">
           <form action={loginAction} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <Label htmlFor="email">Email</Label>
@@ -60,9 +66,6 @@ export default function LoginPage() {
             </Button>
           </form>
         </div>
-        <p className="mt-6 text-center text-[11px] text-muted-foreground">
-          FOSS · AGPLv3 · Built for public-health labs
-        </p>
       </div>
     </div>
   );

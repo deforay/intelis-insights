@@ -213,25 +213,46 @@ export function ChatClient({
 
 function EmptyState({ onPick }: { onPick: (q: string) => void }) {
   return (
-    <div className="flex flex-col items-center justify-center h-full min-h-[60vh] gap-6 text-center">
-      <div className="flex size-12 items-center justify-center rounded-full bg-primary/10">
-        <Sparkles className="size-5 text-primary" />
+    <div className="relative flex flex-col items-center justify-center h-full min-h-[60vh] gap-8 text-center">
+      <div className="absolute inset-0 grid-bg pointer-events-none" />
+
+      <div className="relative">
+        <div className="absolute inset-0 -m-3 rounded-full bg-primary/20 blur-2xl" />
+        <div className="relative flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary/60 text-primary-foreground brand-glow">
+          <Sparkles className="size-6" />
+        </div>
       </div>
-      <div className="space-y-1">
-        <h2 className="text-lg font-semibold">Ask InteLIS</h2>
+
+      <div className="space-y-2 relative">
+        <h2 className="text-2xl font-semibold tracking-tight bg-gradient-to-b from-foreground to-foreground/70 bg-clip-text text-transparent">
+          Ask InteLIS
+        </h2>
         <p className="text-sm text-muted-foreground max-w-md">
-          Natural-language queries against your lab database. Try one of
-          these, or type your own.
+          Natural-language queries against your lab database. Streamed,
+          scoped, audited.
         </p>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-2xl">
-        {SUGGESTIONS.map((s) => (
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-2xl relative">
+        {SUGGESTIONS.map((s, i) => (
           <button
             key={s}
             onClick={() => onPick(s)}
-            className="rounded-lg border bg-card px-4 py-3 text-left text-sm hover:bg-muted hover:border-foreground/20 transition-colors"
+            className="group relative rounded-xl border bg-card/60 backdrop-blur px-4 py-3.5 text-left text-sm hover:border-primary/40 hover:bg-card transition-all overflow-hidden"
           >
-            {s}
+            <span
+              className="absolute -inset-px rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+              style={{
+                background:
+                  "radial-gradient(ellipse 60% 80% at top, oklch(var(--brand) l c h / 0.15), transparent 70%)",
+              }}
+            />
+            <span className="relative flex items-start gap-2">
+              <span className="text-primary/70 text-xs mt-0.5">
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <span className="text-foreground/90">{s}</span>
+            </span>
           </button>
         ))}
       </div>

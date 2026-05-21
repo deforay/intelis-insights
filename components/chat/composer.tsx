@@ -40,7 +40,7 @@ export function Composer({
   const canSubmit = !isStreaming && value.trim().length > 0;
 
   return (
-    <div className="relative border rounded-xl bg-card focus-within:ring-2 focus-within:ring-ring/40 transition-shadow">
+    <div className="relative border rounded-2xl bg-card/80 backdrop-blur focus-within:border-primary/40 focus-within:brand-glow transition-all">
       <Textarea
         ref={ref}
         value={value}

@@ -13,14 +13,16 @@ export async function Sidebar({ activeSessionId }: { activeSessionId?: string })
 
   return (
     <aside className="hidden md:flex w-64 shrink-0 flex-col border-r bg-card/40">
-      <div className="flex items-center gap-2 px-4 py-3.5 border-b">
-        <div className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
-          <FlaskConical className="size-4" />
+      <div className="flex items-center gap-2.5 px-4 py-3.5 border-b">
+        <div className="relative">
+          <div className="absolute inset-0 rounded-lg bg-primary/30 blur-md" />
+          <div className="relative flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/70 text-primary-foreground">
+            <FlaskConical className="size-4" />
+          </div>
         </div>
-        <div className="flex flex-col leading-tight">
-          <span className="text-sm font-semibold">InteLIS Insights</span>
-          <span className="text-[10px] text-muted-foreground">FOSS · AGPLv3</span>
-        </div>
+        <span className="text-sm font-semibold tracking-tight">
+          InteLIS Insights
+        </span>
       </div>
 
       <div className="px-3 py-3">

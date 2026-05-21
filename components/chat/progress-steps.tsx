@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Loader2 } from "lucide-react";
+import { Check } from "lucide-react";
 import type { GraphStage } from "@/lib/graph/types";
 import { cn } from "@/lib/utils";
 
@@ -23,8 +23,15 @@ export function ProgressSteps({
 }) {
   const firstPending = STAGE_LABELS.find((s) => !stages[s.key])?.key;
   return (
-    <div className="rounded-lg border bg-muted/30 p-3">
-      <ul className="flex flex-col gap-1.5">
+    <div className="relative rounded-xl border bg-card/60 backdrop-blur p-3.5 overflow-hidden">
+      <div
+        className="absolute inset-x-0 top-0 h-px"
+        style={{
+          background:
+            "linear-gradient(90deg, transparent, oklch(var(--brand) l c h / 0.6), transparent)",
+        }}
+      />
+      <ul className="flex flex-col gap-2">
         {STAGE_LABELS.map(({ key, label }) => {
           const done = stages[key] === true;
           const active = isStreaming && firstPending === key;
@@ -32,24 +39,26 @@ export function ProgressSteps({
             <li
               key={key}
               className={cn(
-                "flex items-center gap-2 text-xs",
+                "flex items-center gap-2.5 text-xs transition-colors",
                 done
                   ? "text-foreground"
                   : active
                     ? "text-foreground"
-                    : "text-muted-foreground/60",
+                    : "text-muted-foreground/50",
               )}
             >
-              <span className="flex size-4 items-center justify-center">
+              <span className="flex size-4 items-center justify-center shrink-0">
                 {done ? (
-                  <Check className="size-3 text-primary" />
+                  <span className="flex size-4 items-center justify-center rounded-full bg-primary/15">
+                    <Check className="size-2.5 text-primary" />
+                  </span>
                 ) : active ? (
-                  <Loader2 className="size-3 animate-spin text-primary" />
+                  <span className="pulse-dot relative flex size-2 rounded-full bg-primary" />
                 ) : (
                   <span className="size-1.5 rounded-full bg-muted-foreground/30" />
                 )}
               </span>
-              <span>{label}</span>
+              <span className={cn(active && "font-medium")}>{label}</span>
             </li>
           );
         })}
