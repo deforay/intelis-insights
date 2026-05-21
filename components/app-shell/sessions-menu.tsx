@@ -28,22 +28,30 @@ export function SessionsMenu() {
     let canceled = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setState({ kind: "loading" });
+    const timeout = setTimeout(() => {
+      if (!canceled) {
+        setState({ kind: "error", message: "Request timed out after 10s" });
+      }
+    }, 10_000);
     (async () => {
       try {
         const res = await fetch("/api/v1/sessions");
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (!canceled) {
+          clearTimeout(timeout);
           setState({ kind: "loaded", sessions: data.sessions ?? [] });
         }
       } catch (err) {
         if (!canceled) {
+          clearTimeout(timeout);
           setState({ kind: "error", message: (err as Error).message });
         }
       }
     })();
     return () => {
       canceled = true;
+      clearTimeout(timeout);
     };
   }, [open, state.kind]);
 
@@ -102,7 +110,7 @@ export function SessionsMenu() {
                   {Array.from({ length: 5 }).map((_, i) => (
                     <div
                       key={i}
-                      className="h-14 rounded-lg border bg-muted animate-pulse"
+                      className="h-14 rounded-lg border bg-foreground/[0.04] animate-pulse"
                     />
                   ))}
                 </div>
