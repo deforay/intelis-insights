@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { History, MessageSquare, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,16 +15,19 @@ interface SessionItem {
 export function SessionsMenu() {
   const [open, setOpen] = useState(false);
   const [sessions, setSessions] = useState<SessionItem[] | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, startLoading] = useTransition();
 
   useEffect(() => {
     if (!open || sessions) return;
-    setLoading(true);
-    fetch("/api/v1/sessions")
-      .then((r) => r.json())
-      .then((data) => setSessions(data.sessions ?? []))
-      .catch(() => setSessions([]))
-      .finally(() => setLoading(false));
+    startLoading(async () => {
+      try {
+        const res = await fetch("/api/v1/sessions");
+        const data = await res.json();
+        setSessions(data.sessions ?? []);
+      } catch {
+        setSessions([]);
+      }
+    });
   }, [open, sessions]);
 
   useEffect(() => {
