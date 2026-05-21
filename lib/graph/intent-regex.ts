@@ -202,6 +202,17 @@ export function classifyIntent(args: {
     selectedTables.add("geographical_divisions");
   }
 
+  // Bridge: form_vl (and other test forms) join to geographical_divisions
+  // THROUGH facility_details. If both a form table and geographical_divisions
+  // are selected, pull in facility_details so the SQL generator sees the
+  // join path.
+  const hasFormTable = Array.from(selectedTables).some((t) =>
+    TEST_FORM_TABLES.has(t),
+  );
+  if (hasFormTable && selectedTables.has("geographical_divisions")) {
+    selectedTables.add("facility_details");
+  }
+
   // Default: assume VL when the question is clearly about test data but
   // no test type was named.
   if (selectedTables.size === 0) {

@@ -11,7 +11,8 @@ export const SQL_GENERATION_SYSTEM = `You are a strict MySQL SQL generator for a
 
 ABSOLUTE CONSTRAINTS:
 - Use ONLY tables listed in AVAILABLE TABLES below. Never invent table names.
-- You may use ANY column from the AVAILABLE TABLES schema listing below.
+- Use ONLY columns from the AVAILABLE TABLES schema listing below. Never invent column names — if a join needs a column you don't see, the join is wrong.
+- Use the RELATIONSHIPS section below as the only source of truth for JOIN paths. To group test data by province or district, JOIN through facility_details (form_*.lab_id = facility_details.facility_id, then facility_details.facility_state_id or facility_district_id = geographical_divisions.geo_id).
 - The CONTEXT section provides domain-specific rules, thresholds, exemplars, and column semantics — follow them.
 - Cite each table you use as "table:<name>" in citations. Cite relevant context items by their id.
 - Prefer human-readable names (e.g., facility_details.facility_name) over raw IDs when grouping/reporting.
