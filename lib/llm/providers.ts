@@ -5,8 +5,8 @@
  * Vercel AI SDK `LanguageModel` for `getLanguageModel(kind)`. Two model
  * slots are supported:
  *   - "primary" — the SQL generator (`LLM_MODEL`)
- *   - "intent"  — a smaller/faster model for intent classification and
- *                 chart fallback (`LLM_MODEL_INTENT`)
+ *   - "fast"    — a smaller/cheaper model used for secondary tasks like
+ *                 the chart-suggestion fallback (`LLM_MODEL_FAST`)
  *
  * Provider credentials are validated by `lib/config/env.ts` at boot, so
  * the non-null assertions below are safe — env-load throws if the key is
@@ -19,14 +19,14 @@ import { createMistral } from "@ai-sdk/mistral";
 import type { LanguageModel } from "ai";
 import { env } from "@/lib/config/env";
 
-export type ModelKind = "primary" | "intent";
+export type ModelKind = "primary" | "fast";
 
 const cache: Partial<Record<ModelKind, LanguageModel>> = {};
 
 export function getLanguageModel(kind: ModelKind = "primary"): LanguageModel {
   const cached = cache[kind];
   if (cached) return cached;
-  const modelId = kind === "intent" ? env.LLM_MODEL_INTENT : env.LLM_MODEL;
+  const modelId = kind === "fast" ? env.LLM_MODEL_FAST : env.LLM_MODEL;
   const model = buildModel(modelId);
   cache[kind] = model;
   return model;

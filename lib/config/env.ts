@@ -42,7 +42,7 @@ const EnvSchema = z.object({
   // LLM provider selection
   LLM_PROVIDER: LlmProvider.default("openai"),
   LLM_MODEL: z.string().default("gpt-4o"),
-  LLM_MODEL_INTENT: z.string().default("gpt-4o-mini"),
+  LLM_MODEL_FAST: z.string().default("gpt-4o-mini"),
 
   // Provider credentials (each optional; required only when selected)
   OPENAI_API_KEY: z.string().optional(),

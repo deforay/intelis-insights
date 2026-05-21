@@ -67,7 +67,7 @@ export async function formatResponse(
         rowCount: state.results.count,
         profile,
       }),
-      modelKind: "intent",
+      modelKind: "fast",
       temperature: 0,
       maxOutputTokens: 400,
     });

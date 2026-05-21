@@ -2,7 +2,7 @@
  * Thin wrapper around the Vercel AI SDK's `generateObject` for the graph.
  *
  * Centralises model selection, default temperature (0 for SQL/intent), and
- * a small ergonomic shim so callers can pick "primary" or "intent" instead
+ * a small ergonomic shim so callers can pick "primary" or "fast" instead
  * of plumbing a `LanguageModel` instance themselves. Also returns the
  * provider-reported token usage so the audit log can track per-query cost.
  */
