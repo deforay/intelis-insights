@@ -16,12 +16,25 @@ export const metadata = {
   title: "Audit — InteLIS Insights",
 };
 
-export default async function AdminAuditPage() {
+type AuditSearchParams = Promise<{
+  traceId?: string | string[];
+  errors?: string | string[];
+}>;
+
+export default async function AdminAuditPage({
+  searchParams,
+}: {
+  searchParams: AuditSearchParams;
+}) {
   const session = await requireAdmin();
   if (!session) redirect("/chat");
 
+  const params = await searchParams;
+  const traceId = firstParam(params.traceId);
+  const errorsOnly = firstParam(params.errors) === "1";
+
   const [rows, summary] = await Promise.all([
-    listAuditLog({ limit: 100 }),
+    listAuditLog({ limit: traceId ? 1 : 100, traceId, errorsOnly }),
     auditSummary(),
   ]);
 
@@ -33,8 +46,11 @@ export default async function AdminAuditPage() {
           <div className="mb-4">
             <h2 className="text-base font-semibold">Query audit log</h2>
             <p className="text-sm text-muted-foreground">
-              Every natural-language query and the SQL it produced,
-              including scope rewrites and errors. Last 100 entries.
+              {traceId
+                ? `Showing the audit row for trace ${traceId.slice(0, 8)}.`
+                : errorsOnly
+                  ? "Showing failed natural-language queries. Clear the filter to see all entries."
+                  : "Every natural-language query and the SQL it produced, including scope rewrites and errors. Last 100 entries."}
             </p>
           </div>
 
@@ -78,6 +94,11 @@ export default async function AdminAuditPage() {
       </main>
     </>
   );
+}
+
+function firstParam(value: string | string[] | undefined): string | undefined {
+  if (Array.isArray(value)) return value[0];
+  return value;
 }
 
 function Stat({

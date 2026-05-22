@@ -5,7 +5,7 @@
  * (and how it was rewritten by RBAC), how many rows it returned, how
  * long it took, and any error along the way.
  */
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db/app";
 import { auditLog, users } from "@/lib/db/schema";
 
@@ -34,8 +34,16 @@ const DEFAULT_LIMIT = 100;
 export async function listAuditLog(args: {
   limit?: number;
   userId?: string;
+  traceId?: string;
+  errorsOnly?: boolean;
 } = {}): Promise<AuditRow[]> {
   const limit = args.limit ?? DEFAULT_LIMIT;
+  const filters = [
+    args.userId ? eq(auditLog.userId, args.userId) : undefined,
+    args.traceId ? eq(auditLog.traceId, args.traceId) : undefined,
+    args.errorsOnly ? isNotNull(auditLog.errorStage) : undefined,
+  ].filter((filter) => filter !== undefined);
+
   const base = db
     .select({
       id: auditLog.id,
@@ -60,9 +68,11 @@ export async function listAuditLog(args: {
     .leftJoin(users, eq(auditLog.userId, users.id))
     .orderBy(desc(auditLog.createdAt))
     .limit(limit);
-  if (args.userId) {
-    return base.where(eq(auditLog.userId, args.userId));
+
+  if (filters.length > 0) {
+    return base.where(and(...filters));
   }
+
   return base;
 }
 

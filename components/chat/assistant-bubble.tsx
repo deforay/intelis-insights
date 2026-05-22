@@ -45,6 +45,7 @@ export function AssistantBubble({
           code={turn.error.code}
           message={turn.error.message}
           stage={turn.error.stage}
+          traceId={turn.traceId}
         />
       )}
 

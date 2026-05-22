@@ -1,5 +1,6 @@
 "use client";
 
+import { Maximize2 } from "lucide-react";
 import {
   Area,
   AreaChart,
@@ -19,6 +20,19 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import {
+  CATEGORY_CHART_MAX_EXPANDED_HEIGHT,
+  getCategoryAxisWidth,
+  getCategoryChartHeight,
+} from "@/lib/chart/display";
 import type { ChartSuggestion, LabQueryResult } from "@/lib/graph/types";
 
 const COLORS = [
@@ -89,31 +103,67 @@ export function ChartRenderer({
     case "bar":
     case "horizontal_bar": {
       const layout = chart.recommended === "horizontal_bar" ? "vertical" : "horizontal";
+      const expandedHeight =
+        layout === "vertical" ? getCategoryChartHeight(data.length) : 520;
+      const expandedYAxisWidth = getCategoryAxisWidth(data, xAxis);
+      const canExpand = data.length > 12 || expandedYAxisWidth > 150;
+
       return (
-        <ResponsiveContainer width="100%" height={380}>
-          <BarChart data={data} layout={layout}>
-            <CartesianGrid stroke={gridStroke} strokeDasharray="3 3" />
-            {layout === "horizontal" ? (
-              <>
-                <XAxis dataKey={xAxis} stroke={gridStroke} tick={tickStyle} />
-                <YAxis stroke={gridStroke} tick={tickStyle} />
-              </>
-            ) : (
-              <>
-                <XAxis type="number" stroke={gridStroke} tick={tickStyle} />
-                <YAxis
-                  dataKey={xAxis}
-                  type="category"
-                  stroke={gridStroke}
-                  tick={tickStyle}
-                  width={120}
+        <div className="space-y-3">
+          <div className="h-[380px]">
+            <BarChartContent
+              data={data}
+              layout={layout}
+              xAxis={xAxis}
+              yAxis={yAxis}
+              tickStyle={tickStyle}
+              gridStroke={gridStroke}
+              yAxisWidth={layout === "vertical" ? 120 : undefined}
+            />
+          </div>
+          {canExpand && (
+            <div className="flex justify-end">
+              <Dialog>
+                <DialogTrigger
+                  render={
+                    <Button variant="outline" size="xs" className="gap-1.5">
+                      <Maximize2 className="size-3" />
+                      Expand chart
+                    </Button>
+                  }
                 />
-              </>
-            )}
-            <Tooltip {...TOOLTIP_STYLES} />
-            <Bar dataKey={yAxis} fill={COLORS[0]} radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+                <DialogContent className="h-[min(90vh,900px)] w-[calc(100vw-3rem)] max-w-none gap-3 p-5 sm:max-w-none">
+                  <DialogHeader>
+                    <DialogTitle>Expanded chart</DialogTitle>
+                  </DialogHeader>
+                  <div
+                    className="min-h-0 overflow-y-auto pr-2"
+                    style={{
+                      maxHeight:
+                        layout === "vertical"
+                          ? CATEGORY_CHART_MAX_EXPANDED_HEIGHT
+                          : 620,
+                    }}
+                  >
+                    <div style={{ height: expandedHeight }}>
+                      <BarChartContent
+                        data={data}
+                        layout={layout}
+                        xAxis={xAxis}
+                        yAxis={yAxis}
+                        tickStyle={tickStyle}
+                        gridStroke={gridStroke}
+                        yAxisWidth={
+                          layout === "vertical" ? expandedYAxisWidth : undefined
+                        }
+                      />
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          )}
+        </div>
       );
     }
 
@@ -194,6 +244,55 @@ export function ChartRenderer({
     default:
       return null;
   }
+}
+
+function BarChartContent({
+  data,
+  layout,
+  xAxis,
+  yAxis,
+  tickStyle,
+  gridStroke,
+  yAxisWidth,
+}: {
+  data: Record<string, unknown>[];
+  layout: "horizontal" | "vertical";
+  xAxis: string;
+  yAxis: string;
+  tickStyle: { fill: string; fontSize: number };
+  gridStroke: string;
+  yAxisWidth?: number;
+}) {
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart data={data} layout={layout}>
+        <CartesianGrid stroke={gridStroke} strokeDasharray="3 3" />
+        {layout === "horizontal" ? (
+          <>
+            <XAxis dataKey={xAxis} stroke={gridStroke} tick={tickStyle} />
+            <YAxis stroke={gridStroke} tick={tickStyle} />
+          </>
+        ) : (
+          <>
+            <XAxis type="number" stroke={gridStroke} tick={tickStyle} />
+            <YAxis
+              dataKey={xAxis}
+              type="category"
+              stroke={gridStroke}
+              tick={tickStyle}
+              width={yAxisWidth}
+            />
+          </>
+        )}
+        <Tooltip {...TOOLTIP_STYLES} />
+        <Bar
+          dataKey={yAxis}
+          fill={COLORS[0]}
+          radius={layout === "vertical" ? [0, 4, 4, 0] : [4, 4, 0, 0]}
+        />
+      </BarChart>
+    </ResponsiveContainer>
+  );
 }
 
 function distinctValues(

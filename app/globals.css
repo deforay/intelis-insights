@@ -225,59 +225,63 @@
   .analytics-bg {
     overflow: hidden;
     background-image:
+      radial-gradient(
+        ellipse 54% 38% at 50% 18%,
+        rgb(37 134 255 / 0.08),
+        transparent 72%
+      ),
       linear-gradient(
-        oklch(var(--foreground) l c h / 0.035) 1px,
+        rgb(24 39 50 / 0.045) 1px,
         transparent 1px
       ),
       linear-gradient(
         90deg,
-        oklch(var(--foreground) l c h / 0.035) 1px,
+        rgb(24 39 50 / 0.045) 1px,
         transparent 1px
       ),
       radial-gradient(
         circle at center,
-        oklch(var(--brand) l c h / 0.16) 0 1.5px,
+        rgb(37 134 255 / 0.18) 0 1.1px,
         transparent 2px
       );
     background-size:
+      100% 100%,
       56px 56px,
       56px 56px,
-      112px 112px;
+      96px 96px;
     background-position:
+      center,
       -1px -1px,
       -1px -1px,
       0 0;
-    mask-image: radial-gradient(
-      ellipse 78% 68% at 50% 35%,
-      black,
-      transparent 82%
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0,
+      black 8%,
+      black 92%,
+      transparent 100%
     );
   }
 
   .analytics-bg::before {
     content: "";
     position: absolute;
-    inset: 8% 7% 24%;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 260'%3E%3Cpath d='M20 190 C120 110 185 210 285 130 S430 70 520 120 690 220 880 70' fill='none' stroke='%232586ff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' opacity='.5'/%3E%3C/svg%3E");
+    inset: 5% 3% 14%;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1100 420'%3E%3Cg fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M28 292 C120 230 180 320 278 246 S456 142 560 196 716 332 884 192 1014 94 1072 132' stroke='%232586ff' stroke-width='3' opacity='.32'/%3E%3Cpath d='M32 172 C138 120 218 190 326 158 S480 86 608 124 748 206 860 146 1010 118 1070 76' stroke='%2300a8a8' stroke-width='2.5' opacity='.2'/%3E%3Cpath d='M36 336 L158 336 L158 306 L280 306 L280 322 L402 322 L402 262 L524 262 L524 286 L646 286 L646 236 L768 236 L768 252 L890 252 L890 206 L1070 206' stroke='%23182732' stroke-width='2' opacity='.11'/%3E%3C/g%3E%3Cg fill='%232586ff' opacity='.26'%3E%3Ccircle cx='278' cy='246' r='4'/%3E%3Ccircle cx='560' cy='196' r='4'/%3E%3Ccircle cx='884' cy='192' r='4'/%3E%3C/g%3E%3Cg fill='%2300a8a8' opacity='.18'%3E%3Ccircle cx='326' cy='158' r='3.5'/%3E%3Ccircle cx='608' cy='124' r='3.5'/%3E%3Ccircle cx='860' cy='146' r='3.5'/%3E%3C/g%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-size: 100% 100%;
-    opacity: 0.18;
+    opacity: 0.34;
+    mask-image: radial-gradient(ellipse 92% 70% at 50% 44%, black, transparent 86%);
   }
 
   .analytics-bg::after {
     content: "";
     position: absolute;
-    left: 12%;
-    right: 12%;
-    bottom: 4%;
-    height: 140px;
-    background: repeating-linear-gradient(
-      90deg,
-      transparent 0 24px,
-      oklch(var(--brand) l c h / 0.08) 24px 36px,
-      transparent 36px 58px
-    );
-    opacity: 0.7;
-    mask-image: linear-gradient(to top, black, transparent 86%);
+    inset: 16% 4% 8%;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 360'%3E%3Cg fill='%232586ff' opacity='.16'%3E%3Crect x='42' y='242' width='14' height='76' rx='7'/%3E%3Crect x='72' y='204' width='14' height='114' rx='7'/%3E%3Crect x='102' y='264' width='14' height='54' rx='7'/%3E%3Crect x='132' y='182' width='14' height='136' rx='7'/%3E%3Crect x='162' y='224' width='14' height='94' rx='7'/%3E%3Crect x='824' y='236' width='14' height='82' rx='7'/%3E%3Crect x='854' y='196' width='14' height='122' rx='7'/%3E%3Crect x='884' y='216' width='14' height='102' rx='7'/%3E%3Crect x='914' y='154' width='14' height='164' rx='7'/%3E%3C/g%3E%3Cg fill='none' stroke='%23182732' stroke-width='1.5' opacity='.09'%3E%3Cpath d='M26 318H214M786 318H962'/%3E%3Cpath d='M26 264H214M786 264H962' stroke-dasharray='5 8'/%3E%3Cpath d='M26 210H214M786 210H962' stroke-dasharray='5 8'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    opacity: 0.46;
+    mask-image: radial-gradient(ellipse 96% 78% at 50% 50%, black, transparent 90%);
   }
 }
