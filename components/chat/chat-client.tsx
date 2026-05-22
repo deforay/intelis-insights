@@ -8,7 +8,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { toast } from "sonner";
-import { Sparkles } from "lucide-react";
+import { ArrowRight, RefreshCw, Sparkles } from "lucide-react";
 import type { QueryEvent } from "@/lib/graph/events";
 import { parseNdjsonStream } from "@/lib/client/stream";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,8 @@ import {
 import {
   DEFAULT_EMPTY_STATE_SUGGESTIONS,
   getEmptyStateSuggestions,
+  getSuggestionCategory,
+  type SuggestionCategory,
 } from "./suggestions";
 
 const subscribeToSuggestionClock = () => () => {};
@@ -259,13 +261,18 @@ function EmptyState({ onPick }: { onPick: (q: string) => void }) {
     getSuggestionSnapshot,
     getDefaultSuggestionSnapshot,
   );
+  const [shuffledSnapshot, setShuffledSnapshot] = useState<string | null>(null);
   // Keep empty-state prompts curated and local; this avoids spending LLM calls
   // or exposing extra deployment context just to vary starter questions.
-  const suggestions = suggestionSnapshot.split("\n");
+  const suggestions = (shuffledSnapshot ?? suggestionSnapshot).split("\n");
+
+  const shuffleSuggestions = () => {
+    setShuffledSnapshot(getEmptyStateSuggestions().join("\n"));
+  };
 
   return (
-    <div className="relative flex flex-col items-center justify-center h-full min-h-[60vh] gap-8 text-center">
-      <div className="absolute inset-0 grid-bg pointer-events-none" />
+    <div className="relative flex flex-col items-center justify-center h-full min-h-[56vh] gap-7 text-center">
+      <div className="absolute inset-0 analytics-bg pointer-events-none" />
 
       <div className="relative">
         <div className="absolute inset-0 -m-3 rounded-full bg-primary/20 blur-2xl" />
@@ -284,12 +291,28 @@ function EmptyState({ onPick }: { onPick: (q: string) => void }) {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-2xl relative">
+      <div className="relative flex w-full max-w-2xl items-center justify-between px-1 text-left">
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+            Suggested questions
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={shuffleSuggestions}
+          className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border bg-background/70 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+        >
+          <RefreshCw className="size-3" />
+          Shuffle
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full max-w-2xl relative">
         {suggestions.map((s, i) => (
           <button
             key={s}
             onClick={() => onPick(s)}
-            className="group relative rounded-xl border bg-card/60 backdrop-blur px-4 py-3.5 text-left text-sm hover:border-primary/40 hover:bg-card transition-all overflow-hidden"
+            className="group relative min-h-24 cursor-pointer rounded-xl border bg-card/70 backdrop-blur px-4 py-3.5 text-left text-sm shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card hover:shadow-[0_10px_28px_rgba(15,23,42,0.07)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40 overflow-hidden"
           >
             <span
               className="absolute -inset-px rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
@@ -298,11 +321,17 @@ function EmptyState({ onPick }: { onPick: (q: string) => void }) {
                   "radial-gradient(ellipse 60% 80% at top, oklch(var(--brand) l c h / 0.15), transparent 70%)",
               }}
             />
-            <span className="relative flex items-start gap-2">
-              <span className="text-primary/70 text-xs mt-0.5">
-                {String(i + 1).padStart(2, "0")}
+            <span className="relative flex h-full flex-col justify-between gap-3">
+              <span className="flex items-start gap-2">
+                <span className="text-primary/70 text-xs mt-0.5">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <span className="text-foreground/90 leading-snug">{s}</span>
               </span>
-              <span className="text-foreground/90">{s}</span>
+              <span className="flex items-center justify-between">
+                <SuggestionPill category={getSuggestionCategory(s)} />
+                <ArrowRight className="size-3.5 text-primary/0 transition-colors group-hover:text-primary/70" />
+              </span>
             </span>
           </button>
         ))}
@@ -310,3 +339,26 @@ function EmptyState({ onPick }: { onPick: (q: string) => void }) {
     </div>
   );
 }
+
+function SuggestionPill({ category }: { category: SuggestionCategory }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium",
+        CATEGORY_STYLES[category],
+      )}
+    >
+      {category}
+    </span>
+  );
+}
+
+const CATEGORY_STYLES: Record<SuggestionCategory, string> = {
+  Volume: "border-primary/15 bg-primary/5 text-primary",
+  Quality:
+    "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  TAT:
+    "border-teal-500/20 bg-teal-500/10 text-teal-700 dark:text-teal-300",
+  Suppression:
+    "border-fuchsia-500/20 bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300",
+};

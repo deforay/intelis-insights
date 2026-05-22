@@ -6,8 +6,8 @@ import {
   ShieldCheck,
   ScrollText,
   Users,
-  FlaskConical,
   Bookmark,
+  Sparkles,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -56,7 +56,7 @@ export function Topbar({
         <div className="relative">
           <div className="absolute inset-0 rounded-lg bg-primary/30 blur-md" />
           <div className="relative flex size-7 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/70 text-primary-foreground">
-            <FlaskConical className="size-3.5" />
+            <Sparkles className="size-3.5" />
           </div>
         </div>
         <span className="text-sm font-semibold tracking-tight">InteLIS</span>

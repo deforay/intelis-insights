@@ -221,4 +221,63 @@
       transparent 80%
     );
   }
+
+  .analytics-bg {
+    overflow: hidden;
+    background-image:
+      linear-gradient(
+        oklch(var(--foreground) l c h / 0.035) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        90deg,
+        oklch(var(--foreground) l c h / 0.035) 1px,
+        transparent 1px
+      ),
+      radial-gradient(
+        circle at center,
+        oklch(var(--brand) l c h / 0.16) 0 1.5px,
+        transparent 2px
+      );
+    background-size:
+      56px 56px,
+      56px 56px,
+      112px 112px;
+    background-position:
+      -1px -1px,
+      -1px -1px,
+      0 0;
+    mask-image: radial-gradient(
+      ellipse 78% 68% at 50% 35%,
+      black,
+      transparent 82%
+    );
+  }
+
+  .analytics-bg::before {
+    content: "";
+    position: absolute;
+    inset: 8% 7% 24%;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 260'%3E%3Cpath d='M20 190 C120 110 185 210 285 130 S430 70 520 120 690 220 880 70' fill='none' stroke='%232586ff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' opacity='.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    opacity: 0.18;
+  }
+
+  .analytics-bg::after {
+    content: "";
+    position: absolute;
+    left: 12%;
+    right: 12%;
+    bottom: 4%;
+    height: 140px;
+    background: repeating-linear-gradient(
+      90deg,
+      transparent 0 24px,
+      oklch(var(--brand) l c h / 0.08) 24px 36px,
+      transparent 36px 58px
+    );
+    opacity: 0.7;
+    mask-image: linear-gradient(to top, black, transparent 86%);
+  }
 }
