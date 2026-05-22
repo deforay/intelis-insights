@@ -2,11 +2,11 @@
 #
 # Brings up the app + its own state (Postgres) + the vector DB (Qdrant) +
 # a one-shot `init` container that applies migrations, generates the RAG
-# corpus, and (optionally) seeds an admin user. The existing InteLIS
-# MySQL database is NOT included here — it runs wherever the country's
-# InteLIS deployment already lives. Services connect to it via
+# corpus, and (optionally) seeds an admin user. By default, the existing
+# InteLIS MySQL database is external and services connect to it via
 # LAB_DB_HOST in your .env (on macOS / Windows Docker Desktop, use
-# `host.docker.internal` to reach a MySQL on the host).
+# `host.docker.internal` to reach a MySQL on the host). For local/demo
+# installs without host MySQL, layer docker-compose.local-lab.yml on top.
 #
 # Optional profiles:
 #   --profile offline       adds Ollama for fully air-gapped LLM + embeddings
@@ -15,6 +15,8 @@
 # Usage:
 #   cp .env.example .env       # fill in LAB_DB_* and one LLM provider
 #   docker compose up -d       # init runs once, then app starts
+#   docker compose -f docker-compose.yml -f docker-compose.local-lab.yml up -d
+#                              # optional: adds local InteLIS MySQL container
 
 x-app-env: &app-env
   NODE_ENV: production

@@ -1,0 +1,58 @@
+# Optional local InteLIS MySQL for demos / client installs without a host MySQL.
+#
+# Usage:
+#   cp .env.example .env
+#   # set LAB_DB_HOST=intelis-mysql, LAB_DB_PASSWORD, and LOCAL_LAB_MYSQL_ROOT_PASSWORD
+#   # place an approved .sql/.sql.gz dump in ./mysql-init before first startup
+#   docker compose -f docker-compose.yml -f docker-compose.local-lab.yml up -d
+
+services:
+  init:
+    depends_on:
+      intelis-mysql:
+        condition: service_healthy
+    environment:
+      LAB_DB_HOST: intelis-mysql
+      LAB_DB_PORT: 3306
+      LAB_DB_NAME: ${LAB_DB_NAME:-intelis}
+      LAB_DB_USER: ${LAB_DB_USER:-intelis_reader}
+      LAB_DB_PASSWORD: ${LAB_DB_PASSWORD:?Set LAB_DB_PASSWORD for the local InteLIS MySQL read-only user}
+
+  app:
+    depends_on:
+      intelis-mysql:
+        condition: service_healthy
+    environment:
+      LAB_DB_HOST: intelis-mysql
+      LAB_DB_PORT: 3306
+      LAB_DB_NAME: ${LAB_DB_NAME:-intelis}
+      LAB_DB_USER: ${LAB_DB_USER:-intelis_reader}
+      LAB_DB_PASSWORD: ${LAB_DB_PASSWORD:?Set LAB_DB_PASSWORD for the local InteLIS MySQL read-only user}
+
+  intelis-mysql:
+    image: mysql:8.4
+    container_name: intelis-insights-local-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${LOCAL_LAB_MYSQL_ROOT_PASSWORD:?Set LOCAL_LAB_MYSQL_ROOT_PASSWORD for the local InteLIS MySQL container}
+      MYSQL_DATABASE: ${LAB_DB_NAME:-intelis}
+      LOCAL_LAB_DB_USER: ${LAB_DB_USER:-intelis_reader}
+      LOCAL_LAB_DB_PASSWORD: ${LAB_DB_PASSWORD:?Set LAB_DB_PASSWORD for the local InteLIS MySQL read-only user}
+    ports:
+      - "127.0.0.1:${LOCAL_LAB_MYSQL_PORT:-3307}:3306"
+    volumes:
+      - intelis_mysql_data:/var/lib/mysql
+      - ./mysql-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  intelis_mysql_data:

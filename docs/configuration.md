@@ -20,18 +20,35 @@ The app's own state: users, sessions, conversation history (via LangGraph checkp
 | `APP_DB_URL` | _(required)_ | Postgres connection string. |
 | `POSTGRES_PASSWORD` | _(required)_ | Used by the bundled Postgres container in `docker-compose.yml`. |
 
-## Lab database — the existing InteLIS MySQL
+## Lab database — InteLIS MySQL source
 
 !!! warning "Read-only access"
     The credentials below must be granted `SELECT` only. The application enforces SELECT-only at the SQL-validation layer as defence in depth, but the MySQL user itself should be read-only.
 
+By default, these variables point at an external InteLIS MySQL database. For a local/client install that should run MySQL in Docker, use `docker-compose.local-lab.yml`; it starts an `intelis-mysql` service, imports an approved dump from `mysql-init/`, creates a read-only user, and overrides `LAB_DB_HOST` to `intelis-mysql`.
+
 | Variable | Default | Description |
 |---|---|---|
-| `LAB_DB_HOST` | _(required)_ | InteLIS MySQL hostname or IP. |
+| `LAB_DB_HOST` | _(required)_ | InteLIS MySQL hostname or IP. Use `intelis-mysql` with the optional local MySQL override. |
 | `LAB_DB_PORT` | `3306` | InteLIS MySQL port. |
 | `LAB_DB_NAME` | _(required)_ | Database name. |
 | `LAB_DB_USER` | _(required)_ | Read-only user. |
 | `LAB_DB_PASSWORD` | _(required)_ | Password. |
+
+## Optional local InteLIS MySQL container
+
+These settings are used only when starting with:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local-lab.yml up -d
+```
+
+| Variable | Default | Description |
+|---|---|---|
+| `LOCAL_LAB_MYSQL_ROOT_PASSWORD` | _(required with local MySQL)_ | Root password for the optional local MySQL container. Set a strong value for any real client install. |
+| `LOCAL_LAB_MYSQL_PORT` | `3307` | Loopback-only host port exposed for admin tools. App containers use the internal `3306` port. |
+
+Put approved dump files in `mysql-init/` before the first startup. The MySQL image imports `*.sql`, `*.sql.gz`, and executable `*.sh` files only when the MySQL volume is first initialized. Real lab dumps must stay out of git.
 
 ## Vector database (Qdrant)
 

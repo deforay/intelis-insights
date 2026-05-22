@@ -41,7 +41,7 @@ Every component is recognizable, FOSS, and JavaScript / TypeScript.
 
 ## Quick start (Docker)
 
-**Requirements:** Docker 24+, an existing InteLIS MySQL database with a read-only user.
+**Requirements:** Docker 24+, plus either an existing InteLIS MySQL database with a read-only user or the optional local MySQL container described below.
 
 ```bash
 git clone https://github.com/deforay/intelis-insights
@@ -50,7 +50,7 @@ cd intelis-insights
 cp .env.example .env
 ```
 
-Fill in these fields in `.env`:
+Fill in these fields in `.env`. Choose either an external InteLIS MySQL database or the optional local MySQL container below.
 
 | Field | Notes |
 |---|---|
@@ -71,6 +71,26 @@ docker compose up -d
 This starts four services: `postgres`, `qdrant`, a one-shot `init` (waits for the data services, applies the app schema, exports the InteLIS schema, builds + embeds the RAG corpus, seeds an admin user if set), then `app`. The init step takes a couple of minutes on a fresh install — watch with `docker compose logs -f init`.
 
 Once `init` exits cleanly, open <http://localhost:3000> and sign in with the credentials you provided in `SEED_ADMIN_*`. If you didn't set them, create a user later with `docker compose exec init npx tsx scripts/seed-admin.ts`.
+
+### Optional local InteLIS MySQL
+
+For a local/demo install where the client should not install MySQL directly, run the bundled MySQL container with a Compose override instead of pointing at an external `LAB_DB_HOST`:
+
+```bash
+cp .env.example .env
+# Set LAB_DB_HOST=intelis-mysql, LAB_DB_NAME=intelis,
+# LAB_DB_USER=intelis_reader, LAB_DB_PASSWORD=<strong password>
+
+mkdir -p mysql-init
+# Put an approved InteLIS dump here, for example:
+#   mysql-init/01-intelis-dump.sql.gz
+
+docker compose -f docker-compose.yml -f docker-compose.local-lab.yml up -d
+```
+
+The override starts `intelis-mysql`, imports supported MySQL init files (`*.sql`, `*.sql.gz`, and executable `*.sh`) on first boot, creates the app's read-only MySQL user, and points `app`/`init` at that container. The dump import only runs when the MySQL Docker volume is first created; to re-import from scratch, stop the stack and remove the Compose `intelis_mysql_data` volume.
+
+Do not commit real lab dumps. Keep real client data outside the app image/repo and transfer it through an approved secure channel.
 
 ### Re-running init
 

@@ -38,6 +38,12 @@ yarn-error.log*
 /corpus/*.json
 /corpus/*.jsonl
 
+# local/demo InteLIS MySQL dumps (never commit lab data)
+/mysql-init/*.sql
+/mysql-init/*.sql.gz
+/mysql-init/*.dump
+/mysql-init/*.dump.gz
+
 # test artifacts
 /playwright-report/
 /test-results/
