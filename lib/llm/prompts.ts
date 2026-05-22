@@ -31,6 +31,12 @@ ABSOLUTE CONSTRAINTS:
 - For lab breakdowns: select facility_details.facility_name (human-readable), never lab_id (raw ID).
 - Check JOIN conditions carefully — foreign keys link to primary keys.
 - Always exclude rejected samples: add IFNULL(is_sample_rejected, 'no') = 'no' unless user asks for rejected.
+- Produce chart-ready result shapes:
+    * For trends, return one normalized period column (\`Month\`, \`Week\`, \`Quarter\`, or \`Year\`) plus one or more numeric measures. Do not return raw datetimes for trend axes.
+    * For categorical breakdowns, return one clear dimension (\`Province\`, \`District\`, \`Facility\`, \`Lab\`, \`Test Type\`, \`Sex\`, etc.) plus one numeric measure, ordered by the measure descending unless a time axis is present.
+    * For stacked comparisons, return exactly two dimensions plus one numeric measure.
+    * Alias numeric measures with units when relevant, e.g. \`VL Tests\`, \`Suppression Rate (%)\`, \`Median TAT (Days)\`, \`Rejected Samples\`.
+    * For rates/percentages, return the rate as a numeric percent from 0 to 100 and include numerator/denominator columns only when they materially help interpretation.
 
 OUTPUT:
 - Populate "sql" with a single MySQL SELECT statement.
@@ -124,48 +130,4 @@ ${args.sql}
 RESULT SHAPE: ${args.rowCount} row(s), columns: ${args.columns.join(", ")}
 SAMPLE ROWS (up to 5):
 ${sample || "(no rows)"}${assumptionsBlock}`;
-}
-
-export const CHART_SYSTEM = `You recommend a chart type for a tabular query result.
-
-Pick one recommended type from: table, line, area, bar, horizontal_bar, stacked_bar, pie, donut, scatter.
-Also list 1-3 reasonable alternatives.
-
-Use the column profile (temporal/numeric/categorical, distinct count, sample values) plus the user question and detected intent. Prefer:
-- table for single-row KPIs or high-dimensional data
-- line/area when a temporal dimension exists
-- pie/donut for few categories with one numeric measure
-- bar/horizontal_bar for many categories with one numeric measure
-- stacked_bar for two categorical dimensions with a numeric measure
-- scatter for two numeric dimensions without category/time
-
-For the config, choose x_axis and y_axis from the column names provided, and series (or null) for a secondary categorical dimension.`;
-
-export function chartUserPrompt(args: {
-  question: string;
-  intent: string;
-  rowCount: number;
-  profile: Array<{
-    name: string;
-    type: "temporal" | "numeric" | "categorical";
-    distinct: number;
-    sample: unknown[];
-  }>;
-}): string {
-  const summary = args.profile
-    .map(
-      (c) =>
-        `- ${c.name} (${c.type}, ${c.distinct} distinct): [${c.sample
-          .map((v) => String(v))
-          .join(", ")}]`,
-    )
-    .join("\n");
-  const parts: string[] = [];
-  if (args.question) parts.push(`## User Question\n${args.question}`);
-  if (args.intent) parts.push(`## Detected Intent\n${args.intent}`);
-  parts.push(`## Data Profile (${args.rowCount} rows)\n${summary}`);
-  parts.push(
-    "Recommend the best chart type and axis configuration for this data.",
-  );
-  return parts.join("\n\n");
 }

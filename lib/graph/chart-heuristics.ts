@@ -3,8 +3,9 @@
  *
  * Ported from the retired `ChartService` (lines 168–241). Heuristics
  * return a deterministic chart suggestion when the result shape is
- * obviously a time series, a KPI, a single-dimension bar, etc. When
- * inconclusive, the node falls back to an LLM call.
+ * obviously a time series, a KPI, a single-dimension bar, etc. This module
+ * never prepares raw sample values for an external model; all profiling is
+ * local and reduced to safe metadata.
  */
 import type {
   ChartConfig,
@@ -19,10 +20,10 @@ export interface ColumnProfile {
   name: string;
   type: ColumnType;
   distinct: number;
-  sample: unknown[];
 }
 
 const TEMPORAL_NAME = /(date|time|month|year|quarter|week)/i;
+const PERCENT_NAME = /(%|percent|percentage|rate|ratio|proportion|share)/i;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2})?/;
 
 export function profileColumns(result: LabQueryResult): ColumnProfile[] {
@@ -30,8 +31,7 @@ export function profileColumns(result: LabQueryResult): ColumnProfile[] {
     const values = result.rows.map((row) => row[name]);
     const nonNull = values.filter((v) => v !== null && v !== undefined);
     const distinct = new Set(nonNull.map((v) => String(v))).size;
-    const sample = uniqueSample(nonNull, 5);
-    return { name, type: detectType(name, nonNull), distinct, sample };
+    return { name, type: detectType(name, nonNull), distinct };
   });
 }
 
@@ -54,23 +54,10 @@ function isNumericLike(v: unknown): boolean {
   return false;
 }
 
-function uniqueSample(values: unknown[], n: number): unknown[] {
-  const seen = new Set<string>();
-  const out: unknown[] = [];
-  for (const v of values) {
-    const key = String(v);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(v);
-    if (out.length >= n) break;
-  }
-  return out;
-}
-
 export function applyHeuristic(
   profile: ColumnProfile[],
   rowCount: number,
-): ChartSuggestion | null {
+): ChartSuggestion {
   if (profile.length === 0 || rowCount === 0) {
     return build("table", ["bar"], inferConfig(profile, "table"), "No rows to chart.");
   }
@@ -79,6 +66,7 @@ export function applyHeuristic(
   const numeric = profile.filter((p) => p.type === "numeric");
   const categorical = profile.filter((p) => p.type === "categorical");
   const colCount = profile.length;
+  const primaryMeasure = numeric[0];
 
   if (rowCount === 1 && colCount <= 2) {
     return build(
@@ -90,7 +78,7 @@ export function applyHeuristic(
   }
 
   if (temporal.length > 0 && numeric.length > 0) {
-    const multipleSeries = numeric.length > 1 || categorical.length > 0;
+    const multipleSeries = categorical.some((c) => c.distinct <= 12);
     return build(
       multipleSeries ? "area" : "line",
       ["area", "bar", "table"],
@@ -100,19 +88,20 @@ export function applyHeuristic(
   }
 
   if (categorical.length === 1 && numeric.length === 1) {
-    if (rowCount <= 7) {
+    if (rowCount <= 6 && primaryMeasure && isPercentMetric(primaryMeasure.name)) {
       return build(
-        "pie",
-        ["donut", "bar", "horizontal_bar"],
-        inferConfig(profile, "pie"),
-        "Single categorical dimension with few categories suits a pie chart.",
+        "donut",
+        ["bar", "horizontal_bar", "table"],
+        inferConfig(profile, "donut"),
+        "Few categories with a percentage/rate measure suit a donut chart.",
       );
     }
+    const chartType: ChartType = rowCount > 12 ? "horizontal_bar" : "bar";
     return build(
-      "bar",
-      ["horizontal_bar", "table"],
-      inferConfig(profile, "bar"),
-      "Single categorical dimension with many categories suits a bar chart.",
+      chartType,
+      chartType === "bar" ? ["horizontal_bar", "table"] : ["bar", "table"],
+      inferConfig(profile, chartType),
+      "Single categorical dimension with one measure suits a bar chart.",
     );
   }
 
@@ -126,6 +115,14 @@ export function applyHeuristic(
   }
 
   if (categorical.length >= 2 && numeric.length > 0) {
+    if (categorical[1].distinct > 12) {
+      return build(
+        "table",
+        ["horizontal_bar", "bar"],
+        inferConfig(profile, "table"),
+        "Too many series categories for a readable stacked chart.",
+      );
+    }
     return build(
       "stacked_bar",
       ["horizontal_bar", "table"],
@@ -134,7 +131,7 @@ export function applyHeuristic(
     );
   }
 
-  if (colCount > 6) {
+  if (colCount > 6 || numeric.length === 0) {
     return build(
       "table",
       ["bar"],
@@ -143,7 +140,12 @@ export function applyHeuristic(
     );
   }
 
-  return null;
+  return build(
+    "table",
+    ["bar"],
+    inferConfig(profile, "table"),
+    "No deterministic chart rule matched this result shape.",
+  );
 }
 
 export function inferConfig(
@@ -176,6 +178,10 @@ export function inferConfig(
   }
 
   return { xAxis, yAxis, series, title: "" };
+}
+
+function isPercentMetric(name: string): boolean {
+  return PERCENT_NAME.test(name);
 }
 
 function build(

@@ -6,7 +6,7 @@
  * slots are supported:
  *   - "primary" — the SQL generator (`LLM_MODEL`)
  *   - "fast"    — a smaller/cheaper model used for secondary tasks like
- *                 the chart-suggestion fallback (`LLM_MODEL_FAST`)
+ *                 result narration (`LLM_MODEL_FAST`)
  *
  * Provider credentials are validated by `lib/config/env.ts` at boot, so
  * the non-null assertions below are safe — env-load throws if the key is
