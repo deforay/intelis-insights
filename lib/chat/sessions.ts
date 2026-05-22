@@ -9,7 +9,7 @@
  */
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db/app";
-import { chatMessages, chatSessions } from "@/lib/db/schema";
+import { auditLog, chatMessages, chatSessions } from "@/lib/db/schema";
 import type { ChartSuggestion, LabQueryResult } from "@/lib/graph/types";
 
 const CONVERSATION_BLOCK_TURNS = 4;
@@ -60,6 +60,26 @@ export async function listMessages(sessionId: string) {
     .from(chatMessages)
     .where(eq(chatMessages.sessionId, sessionId))
     .orderBy(chatMessages.createdAt);
+}
+
+export async function listSessionAuditRows(sessionId: string) {
+  return db
+    .select({
+      id: auditLog.id,
+      question: auditLog.question,
+      generatedSql: auditLog.generatedSql,
+      rewrittenSql: auditLog.rewrittenSql,
+      accessDecision: auditLog.accessDecision,
+      validationResult: auditLog.validationResult,
+      durationMs: auditLog.durationMs,
+      errorStage: auditLog.errorStage,
+      errorMessage: auditLog.errorMessage,
+      traceId: auditLog.traceId,
+      createdAt: auditLog.createdAt,
+    })
+    .from(auditLog)
+    .where(eq(auditLog.sessionId, sessionId))
+    .orderBy(auditLog.createdAt);
 }
 
 export async function recordUserMessage(args: {

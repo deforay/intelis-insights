@@ -35,6 +35,38 @@ describe("validateSql — happy path", () => {
     ).not.toThrow();
   });
 
+  it("accepts a single SELECT with a trailing statement terminator", () => {
+    expect(() =>
+      validateSql(
+        "SELECT YEAR(fv.sample_tested_datetime) AS `Year`, COUNT(*) AS `VL Tests` FROM form_vl fv WHERE IFNULL(fv.is_sample_rejected, 'no') = 'no' GROUP BY `Year` ORDER BY `Year` ASC;",
+      ),
+    ).not.toThrow();
+  });
+
+  it("accepts generated yearly VL aggregate SQL with a trailing terminator", () => {
+    expect(() =>
+      validateSql(
+        "SELECT YEAR(fv.sample_tested_datetime) AS `Year`, COUNT(*) AS `VL Tests` FROM form_vl fv WHERE fv.sample_tested_datetime >= DATE_SUB(CURDATE(), INTERVAL 5 YEAR) AND IFNULL(fv.is_sample_rejected, 'no') = 'no' GROUP BY `Year` ORDER BY `Year` ASC;",
+      ),
+    ).not.toThrow();
+  });
+
+  it("accepts generated EID facility aggregate SQL with a trailing terminator", () => {
+    expect(() =>
+      validateSql(
+        "SELECT fd.facility_name AS `Facility`, COUNT(*) AS `EID Tests` FROM form_eid fe JOIN facility_details fd ON fe.facility_id = fd.facility_id WHERE fe.sample_tested_datetime >= DATE_FORMAT(CURRENT_DATE ,'%Y-%m-01') AND fe.sample_tested_datetime < DATE_FORMAT(CURRENT_DATE + INTERVAL 1 MONTH,'%Y-%m-01') AND IFNULL(fe.is_sample_rejected, 'no') = 'no' GROUP BY fd.facility_id ORDER BY `EID Tests` DESC;",
+      ),
+    ).not.toThrow();
+  });
+
+  it("accepts generated high VL province aggregate SQL with a trailing terminator", () => {
+    expect(() =>
+      validateSql(
+        "SELECT gd.geo_name AS `Province`, COUNT(*) AS `High VL Tests` FROM form_vl fv LEFT JOIN facility_details fd ON fv.facility_id = fd.facility_id LEFT JOIN geographical_divisions gd ON fd.facility_state_id = gd.geo_id WHERE fv.result_value_absolute > 1000 AND fv.sample_tested_datetime >= DATE_FORMAT(CURRENT_DATE ,'%Y-%m-01') AND fv.sample_tested_datetime < DATE_FORMAT(CURRENT_DATE + INTERVAL 1 MONTH,'%Y-%m-01') AND IFNULL(fv.is_sample_rejected, 'no') = 'no' GROUP BY gd.geo_name ORDER BY `High VL Tests` DESC;",
+      ),
+    ).not.toThrow();
+  });
+
   it("accepts TAT queries with row-level non-negative filters", () => {
     expect(() =>
       validateSql(
@@ -130,6 +162,14 @@ describe("validateSql — rejections", () => {
     expect(() =>
       validateSql("SELECT * FROM form_vl; DROP TABLE form_vl"),
     ).toThrow();
+  });
+
+  it("rejects multiple statements after removing a harmless trailing terminator", () => {
+    expect(() =>
+      validateSql(
+        "SELECT COUNT(*) AS `Tests` FROM form_vl; SELECT COUNT(*) AS `Tests` FROM form_eid;",
+      ),
+    ).toThrow(/exactly one SELECT statement/);
   });
 
   it("rejects SELECT INTO OUTFILE", () => {

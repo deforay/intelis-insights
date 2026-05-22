@@ -54,7 +54,7 @@ export function ResultTable({ result }: { result: LabQueryResult }) {
               {rows.map((row, i) => (
                 <TableRow key={start + i}>
                   {result.columns.map((c) => (
-                    <TableCell key={c} className="text-xs font-mono">
+                    <TableCell key={c} className="text-xs tabular-nums">
                       {formatCell(row[c])}
                     </TableCell>
                   ))}

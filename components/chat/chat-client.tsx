@@ -1,7 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { toast } from "sonner";
 import { Sparkles } from "lucide-react";
 import type { QueryEvent } from "@/lib/graph/events";
@@ -16,13 +21,20 @@ import {
   type AssistantTurn,
   type ChatTurn,
 } from "./types";
+import {
+  DEFAULT_EMPTY_STATE_SUGGESTIONS,
+  getEmptyStateSuggestions,
+} from "./suggestions";
 
-const SUGGESTIONS = [
-  "How many VL tests were done last month?",
-  "Show suppression rate by province",
-  "What's the average turnaround time per testing lab?",
-  "Number of rejected samples this quarter",
-];
+const subscribeToSuggestionClock = () => () => {};
+const getDefaultSuggestionSnapshot = () =>
+  DEFAULT_EMPTY_STATE_SUGGESTIONS.join("\n");
+let browserSuggestionSnapshot: string | null = null;
+
+function getSuggestionSnapshot() {
+  browserSuggestionSnapshot ??= getEmptyStateSuggestions().join("\n");
+  return browserSuggestionSnapshot;
+}
 
 export function ChatClient({
   initialSessionId,
@@ -31,7 +43,6 @@ export function ChatClient({
   initialSessionId?: string;
   initialMessages?: ChatTurn[];
 }) {
-  const router = useRouter();
   const [sessionId, setSessionId] = useState<string | null>(
     initialSessionId ?? null,
   );
@@ -67,7 +78,6 @@ export function ChatClient({
         );
 
       const stageStart = Date.now();
-      let didCreateNewSession = false;
       try {
         const res = await fetch("/api/v1/query", {
           method: "POST",
@@ -89,7 +99,11 @@ export function ChatClient({
             case "session":
               if (!sessionId) {
                 setSessionId(event.sessionId);
-                didCreateNewSession = true;
+                window.history.pushState(
+                  null,
+                  "",
+                  `/chat/${encodeURIComponent(event.sessionId)}`,
+                );
               }
               update({ traceId: event.traceId });
               break;
@@ -169,13 +183,9 @@ export function ChatClient({
         });
       } finally {
         setIsStreaming(false);
-        if (didCreateNewSession && sessionId === null) {
-          // sessionId was set during stream — refresh the sidebar.
-          router.refresh();
-        }
       }
     },
-    [isStreaming, sessionId, router],
+    [isStreaming, sessionId],
   );
 
   const isEmpty = turns.length === 0;
@@ -244,6 +254,15 @@ export function ChatClient({
 }
 
 function EmptyState({ onPick }: { onPick: (q: string) => void }) {
+  const suggestionSnapshot = useSyncExternalStore(
+    subscribeToSuggestionClock,
+    getSuggestionSnapshot,
+    getDefaultSuggestionSnapshot,
+  );
+  // Keep empty-state prompts curated and local; this avoids spending LLM calls
+  // or exposing extra deployment context just to vary starter questions.
+  const suggestions = suggestionSnapshot.split("\n");
+
   return (
     <div className="relative flex flex-col items-center justify-center h-full min-h-[60vh] gap-8 text-center">
       <div className="absolute inset-0 grid-bg pointer-events-none" />
@@ -266,7 +285,7 @@ function EmptyState({ onPick }: { onPick: (q: string) => void }) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-2xl relative">
-        {SUGGESTIONS.map((s, i) => (
+        {suggestions.map((s, i) => (
           <button
             key={s}
             onClick={() => onPick(s)}

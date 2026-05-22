@@ -31,6 +31,7 @@ ABSOLUTE CONSTRAINTS:
 - For lab breakdowns: select facility_details.facility_name (human-readable), never lab_id (raw ID).
 - Check JOIN conditions carefully — foreign keys link to primary keys.
 - Always exclude rejected samples: add IFNULL(is_sample_rejected, 'no') = 'no' unless user asks for rejected.
+- In this analytics app, "test volume", "testing volume", "sample volume", or "sample testing volume" means the COUNT of tests/samples. Do not use specimen quantity columns like plasma volume or mL unless the user explicitly asks for physical specimen volume.
 - TAT / turnaround time: TAT can never be negative. For every TAT calculation, add row-level filters that require sample_collection_date IS NOT NULL, sample_tested_datetime IS NOT NULL, sample_tested_datetime >= sample_collection_date, and TIMESTAMPDIFF(DAY, sample_collection_date, sample_tested_datetime) <= 365 before AVG/MIN/MAX/GROUP BY. These suspicious rows are discarded, not reported.
 - Produce chart-ready result shapes:
     * For trends, return one normalized period column (\`Month\`, \`Week\`, \`Quarter\`, or \`Year\`) plus one or more numeric measures. Do not return raw datetimes for trend axes.

@@ -45,7 +45,8 @@ export function Topbar({
   session: Session;
 }) {
   const u = session.user;
-  const isAdmin = u.role === "admin";
+  // V0 treats every signed-in user as a superadmin until RBAC is reworked.
+  const isAdmin = true;
   const scopeLabel = ACCESS_LABEL[u.accessLevel] ?? u.accessLevel;
   const initials = ((u.name ?? u.email) ?? "??").slice(0, 2).toUpperCase();
 

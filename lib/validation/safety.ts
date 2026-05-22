@@ -55,13 +55,15 @@ const TAT_UPPER_BOUND_RE = new RegExp(
 type SqlAstNode = Record<string, unknown>;
 
 export function validateSql(sql: string): void {
-  if (!SELECT_RE.test(sql)) {
+  const statement = normaliseSingleStatement(sql);
+
+  if (!SELECT_RE.test(statement)) {
     throw new SqlValidationError(
       "not_select",
-      `non-SELECT statement returned: ${truncate(sql)}`,
+      `non-SELECT statement returned: ${truncate(statement)}`,
     );
   }
-  if (!FROM_RE.test(sql)) {
+  if (!FROM_RE.test(statement)) {
     throw new SqlValidationError(
       "missing_from",
       "generated SQL is missing a FROM clause",
@@ -69,7 +71,7 @@ export function validateSql(sql: string): void {
   }
 
   for (const pattern of REJECT_PATTERNS) {
-    if (pattern.test(sql)) {
+    if (pattern.test(statement)) {
       throw new SqlValidationError(
         "reject_pattern",
         `SQL contains a forbidden pattern: ${pattern.source}`,
@@ -77,16 +79,32 @@ export function validateSql(sql: string): void {
     }
   }
 
-  if (COMMENT_RE.test(stripStringLiterals(sql))) {
+  if (COMMENT_RE.test(stripStringLiterals(statement))) {
     throw new SqlValidationError(
       "comments_not_allowed",
       "SQL comments are not allowed in generated queries",
     );
   }
 
-  enforceStructuralSafety(sql);
-  enforceTatDataQuality(sql);
-  enforcePrivacy(sql);
+  enforceStructuralSafety(statement);
+  enforceTatDataQuality(statement);
+  enforcePrivacy(statement);
+}
+
+function normaliseSingleStatement(sql: string): string {
+  const trimmed = sql.trim();
+  const withoutTrailingTerminator = trimmed.replace(/;+\s*$/, "").trim();
+
+  // LLMs often add one harmless trailing semicolon. Semicolons anywhere else
+  // indicate statement chaining, which is outside the app's SELECT-only model.
+  if (stripStringLiterals(withoutTrailingTerminator).includes(";")) {
+    throw new SqlValidationError(
+      "multiple_statements",
+      "generated SQL must contain exactly one SELECT statement",
+    );
+  }
+
+  return withoutTrailingTerminator;
 }
 
 function enforceStructuralSafety(sql: string): void {
