@@ -57,6 +57,10 @@ LAB_DB_NAME=intelis
 LAB_DB_USER=intelis_reader
 LAB_DB_PASSWORD=...
 
+# Cross-platform Docker Compose shortcut for the bundled MySQL override.
+COMPOSE_PATH_SEPARATOR=:
+COMPOSE_FILE=docker-compose.yml:docker-compose.local-lab.yml
+
 LOCAL_LAB_MYSQL_ROOT_PASSWORD=...
 LOCAL_LAB_MYSQL_PORT=3307
 
@@ -72,13 +76,13 @@ mysql-init/
   99-create-readonly-user.sh
 ```
 
-Then start with the local-lab override:
+Then start:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.local-lab.yml up -d
+docker compose up -d
 ```
 
-The override adds an `intelis-mysql` service, imports supported MySQL init files (`*.sql`, `*.sql.gz`, and executable `*.sh`) on first boot, creates the read-only user from `LAB_DB_USER` / `LAB_DB_PASSWORD`, and points `app` and `init` at that container. The import runs only when the MySQL volume is empty. To re-import, stop the stack, remove the Compose `intelis_mysql_data` volume, and start again.
+The `COMPOSE_FILE` shortcut makes Docker Compose load both the base stack and the local-lab override, so the client does not need to remember a long `-f ... -f ...` command. The override adds an `intelis-mysql` service, imports supported MySQL init files (`*.sql`, `*.sql.gz`, and executable `*.sh`) on first boot, creates the read-only user from `LAB_DB_USER` / `LAB_DB_PASSWORD`, and points `app` and `init` at that container. The import runs only when the MySQL volume is empty. To re-import, stop the stack, remove the Compose `intelis_mysql_data` volume, and start again.
 
 Do not commit real lab dumps. The repo ignores `mysql-init/*.sql`, `*.sql.gz`, `*.dump`, and `*.dump.gz`.
 

@@ -37,10 +37,17 @@ By default, these variables point at an external InteLIS MySQL database. For a l
 
 ## Optional local InteLIS MySQL container
 
-These settings are used only when starting with:
+These settings are used only when `.env` enables the local-lab Compose override:
+
+```dotenv
+COMPOSE_PATH_SEPARATOR=:
+COMPOSE_FILE=docker-compose.yml:docker-compose.local-lab.yml
+```
+
+Those `.env` lines make the normal command include the local MySQL override on macOS, Linux, and Windows:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.local-lab.yml up -d
+docker compose up -d
 ```
 
 | Variable | Default | Description |

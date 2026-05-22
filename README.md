@@ -85,10 +85,14 @@ mkdir -p mysql-init
 # Put an approved InteLIS dump here, for example:
 #   mysql-init/01-intelis-dump.sql.gz
 
-docker compose -f docker-compose.yml -f docker-compose.local-lab.yml up -d
+# In .env, uncomment:
+#   COMPOSE_PATH_SEPARATOR=:
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.local-lab.yml
+
+docker compose up -d
 ```
 
-The override starts `intelis-mysql`, imports supported MySQL init files (`*.sql`, `*.sql.gz`, and executable `*.sh`) on first boot, creates the app's read-only MySQL user, and points `app`/`init` at that container. The dump import only runs when the MySQL Docker volume is first created; to re-import from scratch, stop the stack and remove the Compose `intelis_mysql_data` volume.
+The `COMPOSE_FILE` shortcut makes Docker Compose load both the base stack and the local-lab override, so clients only need `docker compose up -d`. The override starts `intelis-mysql`, imports supported MySQL init files (`*.sql`, `*.sql.gz`, and executable `*.sh`) on first boot, creates the app's read-only MySQL user, and points `app`/`init` at that container. The dump import only runs when the MySQL Docker volume is first created; to re-import from scratch, stop the stack and remove the Compose `intelis_mysql_data` volume.
 
 Do not commit real lab dumps. Keep real client data outside the app image/repo and transfer it through an approved secure channel.
 

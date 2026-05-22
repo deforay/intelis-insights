@@ -3,8 +3,9 @@
 # Usage:
 #   cp .env.example .env
 #   # set LAB_DB_HOST=intelis-mysql, LAB_DB_PASSWORD, and LOCAL_LAB_MYSQL_ROOT_PASSWORD
+#   # uncomment COMPOSE_FILE and COMPOSE_PATH_SEPARATOR in .env
 #   # place an approved .sql/.sql.gz dump in ./mysql-init before first startup
-#   docker compose -f docker-compose.yml -f docker-compose.local-lab.yml up -d
+#   docker compose up -d
 
 services:
   init:
