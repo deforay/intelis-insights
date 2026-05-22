@@ -112,10 +112,11 @@ export async function POST(req: Request) {
         finalState = await final;
       } catch (err) {
         errored = true;
+        console.error("[query] stream failed:", err);
         writeEvent({
           type: "error",
           code: "runtime_error",
-          message: (err as Error).message,
+          message: "The query workflow hit an internal error. Please try again.",
           stage: "execute-query",
         });
       }
@@ -138,10 +139,12 @@ export async function POST(req: Request) {
             chart: finalState.chart,
           });
         } catch (err) {
+          console.error("[query] audit write failed:", err);
           writeEvent({
             type: "error",
             code: "audit_write_failed",
-            message: (err as Error).message,
+            message:
+              "The query completed, but the audit record could not be saved.",
             stage: "format-response",
           });
         }

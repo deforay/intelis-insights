@@ -43,6 +43,9 @@ const STAGE_KEYS: Record<string, GraphStage> = {
   "format-response": "format-response",
 };
 
+const RUNTIME_ERROR_MESSAGE =
+  "The query workflow hit an internal error. Please try again.";
+
 type LangfuseSpan = ReturnType<NonNullable<ReturnType<typeof getLangfuse>>["span"]>;
 type LangfuseTrace = ReturnType<NonNullable<ReturnType<typeof getLangfuse>>["trace"]>;
 
@@ -137,19 +140,19 @@ export async function runQuery(input: RunQueryInput): Promise<RunQueryResult> {
               executionMs: accumulated.results.executionMs,
               durationMs: Date.now() - startedAt,
             }
-          : { error: accumulated.error },
+          : { error: sanitiseError(accumulated.error) },
       });
       resolveFinal(accumulated);
     } catch (err) {
       console.error("[graph] uncaught error in stream:", err);
       trace?.update({
-        output: { error: (err as Error).message },
+        output: { error: RUNTIME_ERROR_MESSAGE },
       });
       rejectFinal(err);
       yield {
         type: "error",
         code: "runtime_error",
-        message: (err as Error).message,
+        message: RUNTIME_ERROR_MESSAGE,
         stage: "execute-query",
       };
     }
@@ -195,8 +198,17 @@ function summariseStateForTrace(
   if (partial.accessDecision) out.accessDecision = partial.accessDecision;
   if (partial.results) out.rowCount = partial.results.count;
   if (partial.chart) out.chart = partial.chart.recommended;
-  if (partial.error) out.error = partial.error;
+  if (partial.error) out.error = sanitiseError(partial.error);
   return out;
+}
+
+function sanitiseError(error: GraphStateType["error"]): Record<string, string> | null {
+  if (!error) return null;
+  return {
+    code: error.code,
+    message: error.message,
+    stage: error.stage,
+  };
 }
 
 function* expandNodeEvents(

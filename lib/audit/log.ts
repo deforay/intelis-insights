@@ -45,7 +45,7 @@ export async function writeAuditLog(input: AuditWriteInput): Promise<string> {
       resultCount: state.results?.count ?? null,
       durationMs: input.durationMs,
       errorStage: state.error?.stage ?? null,
-      errorMessage: state.error?.message ?? null,
+      errorMessage: state.error?.internalMessage ?? state.error?.message ?? null,
       traceId: state.traceId,
       llmProvider: env.LLM_PROVIDER,
       llmModel: state.sqlMeta?.modelId ?? env.LLM_MODEL,

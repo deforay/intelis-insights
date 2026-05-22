@@ -31,6 +31,27 @@ const COMMENT_RE = /\/\*|--|#/;
 const DANGEROUS_FUNCTIONS = new Set(["benchmark", "load_file", "sleep"]);
 const parser = new Parser();
 
+const TAT_DIFF_CALL =
+  String.raw`timestampdiff\s*\(\s*day\s*,\s*(?:[a-z0-9_]+\.)?sample_collection_date\s*,\s*(?:[a-z0-9_]+\.)?sample_tested_datetime\s*\)`;
+const TAT_DIFF_RE = new RegExp(TAT_DIFF_CALL, "i");
+const TAT_NON_NEGATIVE_RE = new RegExp(
+  [
+    String.raw`(?:[a-z0-9_]+\.)?sample_tested_datetime\s*>=\s*(?:[a-z0-9_]+\.)?sample_collection_date`,
+    String.raw`(?:[a-z0-9_]+\.)?sample_collection_date\s*<=\s*(?:[a-z0-9_]+\.)?sample_tested_datetime`,
+    `${TAT_DIFF_CALL}\\s*>=\\s*0`,
+    `${TAT_DIFF_CALL}\\s+between\\s+0\\s+and\\s+\\d+`,
+  ].join("|"),
+  "i",
+);
+const TAT_UPPER_BOUND_RE = new RegExp(
+  [
+    `${TAT_DIFF_CALL}\\s*<=\\s*365`,
+    `${TAT_DIFF_CALL}\\s*<\\s*366`,
+    `${TAT_DIFF_CALL}\\s+between\\s+0\\s+and\\s+365`,
+  ].join("|"),
+  "i",
+);
+
 type SqlAstNode = Record<string, unknown>;
 
 export function validateSql(sql: string): void {
@@ -64,6 +85,7 @@ export function validateSql(sql: string): void {
   }
 
   enforceStructuralSafety(sql);
+  enforceTatDataQuality(sql);
   enforcePrivacy(sql);
 }
 
@@ -249,6 +271,28 @@ function enforcePrivacy(sql: string): void {
         `query selects forbidden patient-identifier column "${col}" outside of COUNT(DISTINCT …)`,
       );
     }
+  }
+}
+
+function enforceTatDataQuality(sql: string): void {
+  const normalised = stripStringLiterals(sql)
+    .replace(/`/g, "")
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+
+  if (!TAT_DIFF_RE.test(normalised)) return;
+  if (!TAT_NON_NEGATIVE_RE.test(normalised)) {
+    throw new SqlValidationError(
+      "tat_negative_filter_missing",
+      "TAT calculations must discard suspicious rows where sample_tested_datetime is before sample_collection_date",
+    );
+  }
+
+  if (!TAT_UPPER_BOUND_RE.test(normalised)) {
+    throw new SqlValidationError(
+      "tat_outlier_filter_missing",
+      "TAT calculations must discard suspicious rows where turnaround time exceeds 365 days",
+    );
   }
 }
 

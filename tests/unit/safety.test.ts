@@ -34,6 +34,22 @@ describe("validateSql — happy path", () => {
       ),
     ).not.toThrow();
   });
+
+  it("accepts TAT queries with row-level non-negative filters", () => {
+    expect(() =>
+      validateSql(
+        "SELECT fd.facility_name AS `Testing Lab`, AVG(TIMESTAMPDIFF(DAY, fv.sample_collection_date, fv.sample_tested_datetime)) AS `Average TAT (Days)` FROM form_vl fv JOIN facility_details fd ON fv.lab_id = fd.facility_id WHERE fv.sample_collection_date IS NOT NULL AND fv.sample_tested_datetime IS NOT NULL AND fv.sample_tested_datetime >= fv.sample_collection_date AND TIMESTAMPDIFF(DAY, fv.sample_collection_date, fv.sample_tested_datetime) <= 365 GROUP BY fd.facility_name",
+      ),
+    ).not.toThrow();
+  });
+
+  it("accepts TAT queries using TIMESTAMPDIFF BETWEEN 0 AND max", () => {
+    expect(() =>
+      validateSql(
+        "SELECT AVG(TIMESTAMPDIFF(DAY, sample_collection_date, sample_tested_datetime)) AS `Average TAT (Days)` FROM form_vl WHERE TIMESTAMPDIFF(DAY, sample_collection_date, sample_tested_datetime) BETWEEN 0 AND 365",
+      ),
+    ).not.toThrow();
+  });
 });
 
 describe("validateSql — rejections", () => {
@@ -174,5 +190,21 @@ describe("validateSql — rejections", () => {
     expect(() =>
       validateSql("SELECT COUNT(*) AS `Tests` FROM intelis.form_vl"),
     ).toThrow(/schema-qualified/);
+  });
+
+  it("rejects TAT queries that can include negative turnaround times", () => {
+    expect(() =>
+      validateSql(
+        "SELECT fd.facility_name AS `Testing Lab`, AVG(TIMESTAMPDIFF(DAY, fv.sample_collection_date, fv.sample_tested_datetime)) AS `Average TAT (Days)` FROM form_vl fv JOIN facility_details fd ON fv.lab_id = fd.facility_id WHERE TIMESTAMPDIFF(DAY, fv.sample_collection_date, fv.sample_tested_datetime) <= 365 GROUP BY fd.facility_name",
+      ),
+    ).toThrow(/TAT calculations must discard suspicious rows/);
+  });
+
+  it("rejects TAT queries that do not exclude extreme outliers", () => {
+    expect(() =>
+      validateSql(
+        "SELECT AVG(TIMESTAMPDIFF(DAY, sample_collection_date, sample_tested_datetime)) AS `Average TAT (Days)` FROM form_vl WHERE sample_tested_datetime >= sample_collection_date",
+      ),
+    ).toThrow(/turnaround time exceeds 365 days/);
   });
 });

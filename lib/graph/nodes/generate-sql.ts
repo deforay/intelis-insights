@@ -74,7 +74,7 @@ export async function generateSql(
         conversationBlock: scrubbedConvo,
         question: state.question,
         previousSql: state.sql!,
-        validationError: state.error!.message,
+        validationError: state.error!.internalMessage ?? state.error!.message,
       })
     : sqlGenerationUserPrompt({
         schemaBlock: rag.schemaBlock,

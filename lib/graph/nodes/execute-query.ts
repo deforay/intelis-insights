@@ -30,7 +30,9 @@ export async function executeQuery(
     return {
       error: {
         code: "db_error",
-        message: (err as Error).message,
+        message:
+          "The query could not be executed safely. Please refine your question and try again.",
+        internalMessage: (err as Error).message,
         stage: "execute-query",
       },
     };

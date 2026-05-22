@@ -96,8 +96,11 @@ export type GraphStage =
 
 export interface GraphError {
   code: string;
+  /** User-facing message safe to stream to the browser. */
   message: string;
   stage: GraphStage;
+  /** Operator-facing detail for audit logs and internal retry prompts. */
+  internalMessage?: string;
 }
 
 export type { UserContext, LabQueryResult };

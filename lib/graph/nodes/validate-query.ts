@@ -29,7 +29,9 @@ export async function validateQuery(
       return {
         error: {
           code: err.code,
-          message: err.message,
+          message:
+            "The generated SQL did not pass safety validation. Please refine your question and try again.",
+          internalMessage: err.message,
           stage: "validate-query",
         },
       };
@@ -37,7 +39,9 @@ export async function validateQuery(
     return {
       error: {
         code: "validator_error",
-        message: (err as Error).message,
+        message:
+          "The generated SQL could not be validated. Please refine your question and try again.",
+        internalMessage: (err as Error).message,
         stage: "validate-query",
       },
     };

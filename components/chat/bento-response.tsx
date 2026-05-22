@@ -13,6 +13,12 @@ import {
   Sparkles,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { ChartRenderer } from "@/components/chart/chart-renderer";
 import { ResultTable } from "./result-table";
@@ -84,14 +90,29 @@ export function BentoResponse({
           {isKpi ? (
             <KpiHero turn={turn} />
           ) : hasChart && turn.chart && turn.results ? (
-            <>
-              <ChartRenderer chart={turn.chart} result={turn.results} />
-              {turn.chart.reasoning && (
-                <p className="mt-2 text-[11px] text-muted-foreground">
-                  {turn.chart.reasoning}
-                </p>
-              )}
-            </>
+            <Tabs defaultValue="chart" className="gap-3">
+              <TabsList>
+                <TabsTrigger value="chart">
+                  <BarChart3 className="size-3.5" />
+                  Chart
+                </TabsTrigger>
+                <TabsTrigger value="data">
+                  <Table2 className="size-3.5" />
+                  Data
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="chart" className="min-w-0">
+                <ChartRenderer chart={turn.chart} result={turn.results} />
+                {turn.chart.reasoning && (
+                  <p className="mt-2 text-[11px] text-muted-foreground">
+                    {turn.chart.reasoning}
+                  </p>
+                )}
+              </TabsContent>
+              <TabsContent value="data" className="min-w-0">
+                <ResultTable result={turn.results} />
+              </TabsContent>
+            </Tabs>
           ) : turn.results ? (
             <ResultTable result={turn.results} />
           ) : null}
