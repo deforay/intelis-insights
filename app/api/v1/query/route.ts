@@ -22,6 +22,8 @@ import { runQuery } from "@/lib/graph/runner";
 import type { QueryEvent } from "@/lib/graph/events";
 import { writeAuditLog } from "@/lib/audit/log";
 import { flushTraces } from "@/lib/observability/langfuse";
+import { SECURITY_LIMITS } from "@/lib/config/security";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -35,6 +37,20 @@ export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  const rateLimit = checkRateLimit(
+    `query:${session.user.id}`,
+    SECURITY_LIMITS.queryRateLimit,
+  );
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "rate limit exceeded" },
+      {
+        status: 429,
+        headers: { "Retry-After": String(rateLimit.retryAfterSeconds) },
+      },
+    );
   }
 
   const raw = await req.json().catch(() => null);

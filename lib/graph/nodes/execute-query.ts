@@ -7,9 +7,7 @@
  */
 import type { GraphStateType, GraphStateUpdate } from "../state";
 import { runLabQuery } from "@/lib/db/lab";
-import { SCOPE_LIMITS } from "@/lib/config/business-rules";
-
-const LIMIT_RE = /\blimit\s+\d+/i;
+import { clampResultLimit } from "@/lib/validation/query-limit";
 
 export async function executeQuery(
   state: GraphStateType,
@@ -24,9 +22,8 @@ export async function executeQuery(
     };
   }
 
-  const sql = enforceLimit(state.sql);
-
   try {
+    const sql = clampResultLimit(state.sql);
     const result = await runLabQuery(sql);
     return { results: result };
   } catch (err) {
@@ -38,10 +35,4 @@ export async function executeQuery(
       },
     };
   }
-}
-
-function enforceLimit(sql: string): string {
-  if (LIMIT_RE.test(sql)) return sql;
-  const trimmed = sql.replace(/;\s*$/, "");
-  return `${trimmed} LIMIT ${SCOPE_LIMITS.maxResultLimit}`;
 }

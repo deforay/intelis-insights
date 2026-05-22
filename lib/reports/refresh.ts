@@ -13,21 +13,14 @@
  */
 import { enforceAccess } from "@/lib/validation/access-control";
 import { validateSql, SqlValidationError } from "@/lib/validation/safety";
+import { clampResultLimit } from "@/lib/validation/query-limit";
 import { runLabQuery, type LabQueryResult } from "@/lib/db/lab";
-import { SCOPE_LIMITS } from "@/lib/config/business-rules";
 import type { UserContext } from "@/lib/auth/rbac";
 import {
   getReportForUser,
   summariseResult,
   updateReport,
 } from "./store";
-
-const LIMIT_RE = /\blimit\s+\d+/i;
-
-function enforceLimit(sql: string): string {
-  if (LIMIT_RE.test(sql)) return sql;
-  return `${sql.replace(/;\s*$/, "")} LIMIT ${SCOPE_LIMITS.maxResultLimit}`;
-}
 
 export interface RefreshOutcome {
   ok: boolean;
@@ -75,7 +68,7 @@ export async function refreshReport(args: {
 
   let result: LabQueryResult;
   try {
-    result = await runLabQuery(enforceLimit(sql));
+    result = await runLabQuery(clampResultLimit(sql));
   } catch (err) {
     return {
       ok: false,

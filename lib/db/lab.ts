@@ -1,5 +1,6 @@
 import mysql from "mysql2/promise";
 import { env } from "@/lib/config/env";
+import { SECURITY_LIMITS } from "@/lib/config/security";
 
 /**
  * Connection pool for the external InteLIS MySQL database.
@@ -48,7 +49,11 @@ export async function runLabQuery(
   params: unknown[] = [],
 ): Promise<LabQueryResult> {
   const start = performance.now();
-  const [rows, fields] = await labDb.query(sql, params);
+  const [rows, fields] = await labDb.query({
+    sql,
+    values: params,
+    timeout: SECURITY_LIMITS.labQueryTimeoutMs,
+  });
   const executionMs = Math.round(performance.now() - start);
 
   if (!Array.isArray(rows)) {

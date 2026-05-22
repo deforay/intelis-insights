@@ -6,6 +6,8 @@ import { z } from "zod";
 import authConfig from "./auth.config";
 import { db } from "@/lib/db/app";
 import { users } from "@/lib/db/schema";
+import { SECURITY_LIMITS } from "@/lib/config/security";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 
 const CredentialsSchema = z.object({
   email: z.email(),
@@ -20,9 +22,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         const parsed = CredentialsSchema.safeParse(credentials);
         if (!parsed.success) return null;
+
+        const emailKey = parsed.data.email.toLowerCase();
+        const ip =
+          request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+          request.headers.get("x-real-ip") ??
+          "unknown";
+        const rateLimit = checkRateLimit(
+          `login:${ip}:${emailKey}`,
+          SECURITY_LIMITS.loginRateLimit,
+        );
+        if (!rateLimit.allowed) return null;
 
         const [user] = await db
           .select()
