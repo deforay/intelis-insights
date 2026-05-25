@@ -34,6 +34,19 @@ services:
     image: mysql:8.4
     container_name: intelis-insights-local-mysql
     restart: unless-stopped
+    # InteLIS dumps need a permissive MySQL config to import cleanly:
+    #   - innodb-strict-mode=OFF: form_vl has 245 columns and trips
+    #     MySQL 8's worst-case row-size pre-check at CREATE TABLE time
+    #     even though DYNAMIC pushes varchars off-page fine.
+    #   - innodb-default-row-format=DYNAMIC: explicit for clarity.
+    #   - sql-mode='': InteLIS data routinely contains 0000-00-00 dates,
+    #     empty strings into NOT NULL numerics, etc. — legacy that
+    #     MySQL 8's default STRICT mode rejects.
+    command:
+      - mysqld
+      - --innodb-strict-mode=OFF
+      - --innodb-default-row-format=DYNAMIC
+      - --sql-mode=
     environment:
       MYSQL_ROOT_PASSWORD: ${LOCAL_LAB_MYSQL_ROOT_PASSWORD:?Set LOCAL_LAB_MYSQL_ROOT_PASSWORD for the local InteLIS MySQL container}
       MYSQL_DATABASE: ${LAB_DB_NAME:-intelis}
