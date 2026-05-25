@@ -74,25 +74,29 @@ Once `init` exits cleanly, open <http://localhost:3000> and sign in with the cre
 
 ### Optional local InteLIS MySQL
 
-For a local/demo install where the client should not install MySQL directly, run the bundled MySQL container with a Compose override instead of pointing at an external `LAB_DB_HOST`:
+For a local/demo install where the client should not install MySQL directly, run the bundled MySQL container with a Compose override instead of pointing at an external `LAB_DB_HOST`. Use the dedicated env template — it pre-fills `LAB_DB_HOST=intelis-mysql`, the reader user, and the `COMPOSE_FILE` toggle that layers in the override:
 
 ```bash
-cp .env.example .env
-# Set LAB_DB_HOST=intelis-mysql, LAB_DB_NAME=intelis,
-# LAB_DB_USER=intelis_reader, LAB_DB_PASSWORD=<strong password>
+cp .env.local-lab.example .env
+# Fill in the <change-me> values: AUTH_SECRET, POSTGRES_PASSWORD,
+# LAB_DB_PASSWORD, LOCAL_LAB_MYSQL_ROOT_PASSWORD, and your LLM API key.
 
-mkdir -p mysql-init
-# Put an approved InteLIS dump here, for example:
-#   mysql-init/01-intelis-dump.sql.gz
-
-# In .env, uncomment:
-#   COMPOSE_PATH_SEPARATOR=:
-#   COMPOSE_FILE=docker-compose.yml:docker-compose.local-lab.yml
+cp <your-approved-dump>.sql.gz mysql-init/01-intelis-dump.sql.gz
 
 docker compose up -d
 ```
 
-The `COMPOSE_FILE` shortcut makes Docker Compose load both the base stack and the local-lab override, so clients only need `docker compose up -d`. The override starts `intelis-mysql`, imports supported MySQL init files (`*.sql`, `*.sql.gz`, and executable `*.sh`) on first boot, creates the app's read-only MySQL user, and points `app`/`init` at that container. The dump import only runs when the MySQL Docker volume is first created; to re-import from scratch, stop the stack and remove the Compose `intelis_mysql_data` volume.
+The override starts `intelis-mysql`, imports supported MySQL init files (`*.sql`, `*.sql.gz`, and executable `*.sh`) on first boot, creates the app's read-only MySQL user, and points `app`/`init` at that container. The `mysqld` defaults are loosened (`innodb-strict-mode=OFF`, `sql-mode=`) so real InteLIS dumps — with wide tables like `form_vl` and legacy `0000-00-00` dates — import cleanly.
+
+The dump import only runs when the MySQL Docker volume is first created. The import (including the post-INSERT index build) takes a few minutes on a ~200MB compressed dump; watch with `docker compose logs -f intelis-mysql` and treat the final `ready for connections ... port: 3306` line as the done-signal. To re-import from scratch, stop the stack and remove the Compose `intelis_mysql_data` volume:
+
+```bash
+docker compose down
+docker volume rm intelis-insights_intelis_mysql_data
+docker compose up -d
+```
+
+`LAB_DB_NAME` is whatever name you want the data loaded into; for phpMyAdmin exports without `CREATE DATABASE` / `USE` (the typical InteLIS dump), any value works. For dumps that contain `USE foo;`, set `LAB_DB_NAME=foo` exactly so the reader-user grant lands on the right database.
 
 Do not commit real lab dumps. Keep real client data outside the app image/repo and transfer it through an approved secure channel.
 
