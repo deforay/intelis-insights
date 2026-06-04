@@ -65,3 +65,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# database backups (contain real lab PII — never commit)
+/backups

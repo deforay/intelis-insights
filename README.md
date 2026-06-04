@@ -154,6 +154,47 @@ To expose the app on a public domain (e.g. an Ubuntu droplet on DigitalOcean), u
 
 Caddy fetches the certificate on the first request and renews it automatically.
 
+The steps above are the default deployment: the app connects to an **external InteLIS MySQL** at `LAB_DB_HOST`, which can live anywhere reachable from the droplet — the same host, another server, or a managed database.
+
+### Optionally bundling MySQL on the same droplet
+
+For standalone installs with no separate InteLIS server, layer the optional `docker-compose.local-lab.yml` overlay on top to run MySQL as part of the stack (see [Optional local InteLIS MySQL](#optional-local-intelis-mysql)). To combine it with the VPS proxy, start from `.env.local-lab.example` and chain all three compose files — order matters, so the prod overlay comes last:
+
+```bash
+cp .env.local-lab.example .env
+# In .env, on top of the local-lab values:
+#   add  SITE_ADDRESS=insights.example.com  and  AUTH_URL=https://insights.example.com
+#   extend the COMPOSE_FILE line to include the prod overlay:
+#     COMPOSE_FILE=docker-compose.yml:docker-compose.local-lab.yml:docker-compose.prod.yml
+
+# Place the InteLIS dump before first boot (it imports only on an empty volume):
+cp <your-dump>.sql.gz mysql-init/01-intelis-dump.sql.gz
+
+docker compose up -d   # COMPOSE_FILE makes this pick up all three overlays
+```
+
+Bundling MySQL adds real memory and storage load — size the droplet for the dataset (≈8 GB RAM for a typical InteLIS dump) and remember that **you** now own its backups. Keep the bundled MySQL off the firewall; it stays on loopback / the compose network.
+
+### Backups
+
+`scripts/backup.sh` dumps the stateful data to `./backups` (gitignored — backups contain PII):
+
+- **Postgres** (always) — RBAC users, audit log, sessions, LangGraph checkpoints. This is the irreplaceable data.
+- **Bundled MySQL** (only if that container is running) — auto-skipped in external-MySQL deployments, where the lab owns its own backups.
+
+```bash
+./scripts/backup.sh                                   # → ./backups, keeps 14 days
+BACKUP_DIR=/mnt/vol BACKUP_RETENTION_DAYS=30 ./scripts/backup.sh
+```
+
+Schedule it with cron (daily at 02:30):
+
+```cron
+30 2 * * * cd /home/USER/intelis-insights && ./scripts/backup.sh >> backups/backup.log 2>&1
+```
+
+Ship `./backups` to off-box storage (object storage, another host) so a lost droplet doesn't take the backups with it.
+
 ## Local development
 
 If you want to iterate on the code with hot reload, run the data services in Docker and the app on the host:
