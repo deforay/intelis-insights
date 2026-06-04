@@ -1,0 +1,39 @@
+# Production overlay — adds a Caddy reverse proxy in front of the app and
+# terminates HTTPS with auto-provisioned Let's Encrypt certificates.
+#
+# Usage (on the VPS, after DNS for your hostname points here):
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Prerequisites in .env:
+#   SITE_ADDRESS=insights.example.com               # the public hostname Caddy serves
+#   AUTH_URL=https://insights.example.com           # must match the public URL
+#   AUTH_SECRET=<openssl rand -base64 32>
+#   LAB_DB_HOST=<reachable MySQL host>              # NOT host.docker.internal on Linux
+
+services:
+  # The app no longer publishes 3000 to the world; only Caddy reaches it
+  # over the internal compose network.
+  app:
+    ports: !reset []
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: intelis-insights-caddy
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  caddy_data:
+  caddy_config:

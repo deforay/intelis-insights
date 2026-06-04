@@ -121,6 +121,39 @@ docker compose --profile offline up -d
 
 The bundled `ollama` service runs locally with no external dependencies. You'll need to `docker compose exec ollama ollama pull llama3.1:8b nomic-embed-text` (or whichever models you choose) before the init service can use them.
 
+## Deploying to a VPS (domain + HTTPS)
+
+To expose the app on a public domain (e.g. an Ubuntu droplet on DigitalOcean), use the `docker-compose.prod.yml` overlay. It adds a [Caddy](https://caddyserver.com/) reverse proxy that terminates HTTPS and auto-provisions a Let's Encrypt certificate, and stops the app from publishing port 3000 directly.
+
+1. **Install Docker** (Engine + Compose plugin) if it isn't already. On a fresh Ubuntu host the convenience script is quickest:
+
+   ```bash
+   curl -fsSL https://get.docker.com | sh
+   ```
+
+   See the [official install docs](https://docs.docker.com/engine/install/ubuntu/) for the manual/repo-based method. Then clone this repo and `cd` into it.
+
+2. **Point DNS at the server.** Add an `A` record for your hostname (e.g. `insights.example.com`) to the server's public IP and wait for it to resolve (`dig +short insights.example.com`).
+
+3. **Set the hostname and public URL in `.env`.** Caddy reads `SITE_ADDRESS`, and Auth.js callbacks break if `AUTH_URL` doesn't match the domain:
+
+   ```bash
+   SITE_ADDRESS=insights.example.com
+   AUTH_URL=https://insights.example.com
+   AUTH_SECRET=<openssl rand -base64 32>
+   LAB_DB_HOST=<reachable MySQL host>   # not host.docker.internal on Linux
+   ```
+
+4. **Open the firewall** for 80/443 (and 22 for SSH) — e.g. `ufw allow OpenSSH && ufw allow 80 && ufw allow 443 && ufw enable`. Postgres and Qdrant are already bound to loopback and stay private.
+
+5. **Bring it up:**
+
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+   ```
+
+Caddy fetches the certificate on the first request and renews it automatically.
+
 ## Local development
 
 If you want to iterate on the code with hot reload, run the data services in Docker and the app on the host:

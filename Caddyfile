@@ -1,0 +1,6 @@
+# Site address comes from the SITE_ADDRESS env var (set in .env), so the
+# real hostname never lives in the repo. e.g. SITE_ADDRESS=insights.example.com
+{$SITE_ADDRESS} {
+	# Auto-provisions and renews a Let's Encrypt cert for this domain.
+	reverse_proxy app:3000
+}
