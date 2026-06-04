@@ -28,15 +28,16 @@ RUN addgroup --system --gid 1001 nodejs \
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/drizzle ./drizzle
 
 USER nextjs
 EXPOSE 3000
 CMD ["node", "server.js"]
 
-# ── init: one-shot bootstrap (migrations + corpus + seed) ───────────────
+# ── init: one-shot bootstrap (schema push + corpus + seed) ──────────────
 # Runs once before the app service starts. Has the full toolchain
 # (drizzle-kit, tsx, source scripts) which the slim runner stage lacks.
+# Schema is applied via `drizzle-kit push` (see scripts/init.ts), so no
+# generated migrations folder is needed.
 FROM node:${NODE_VERSION} AS init
 WORKDIR /app
 ENV NODE_ENV=production
@@ -47,6 +48,5 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY package.json package-lock.json tsconfig.json drizzle.config.ts ./
 COPY scripts ./scripts
 COPY lib ./lib
-COPY drizzle ./drizzle
 
 CMD ["npx", "tsx", "scripts/init.ts"]
