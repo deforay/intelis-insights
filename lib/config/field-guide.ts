@@ -18,7 +18,7 @@
  */
 export const TERMINOLOGY_MAPPING: Readonly<Record<string, string>> = {
   "vl|viral load|hiv vl": "form_vl",
-  "eid|infant|early infant|dna": "form_eid",
+  "eid|infant|early infant|child": "form_eid",
   "covid|coronavirus|sars-cov-2": "form_covid19",
   "tb|tuberculosis|xpert": "form_tb",
   cd4: "form_cd4",
