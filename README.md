@@ -135,21 +135,25 @@ To expose the app on a public domain (e.g. an Ubuntu droplet on DigitalOcean), u
 
 2. **Point DNS at the server.** Add an `A` record for your hostname (e.g. `insights.example.com`) to the server's public IP and wait for it to resolve (`dig +short insights.example.com`).
 
-3. **Set the hostname and public URL in `.env`.** Caddy reads `SITE_ADDRESS`, and Auth.js callbacks break if `AUTH_URL` doesn't match the domain:
+3. **Set the deployment values in `.env`.** Selecting the overlays is a one-time edit here, so a bare `docker compose up -d` does everything — no `-f` flags. Caddy reads `SITE_ADDRESS`, and Auth.js callbacks break if `AUTH_URL` doesn't match the domain:
 
    ```bash
+   # Pick the topology once — every docker compose command then uses it:
+   COMPOSE_PATH_SEPARATOR=:
+   COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
+
    SITE_ADDRESS=insights.example.com
    AUTH_URL=https://insights.example.com
    AUTH_SECRET=<openssl rand -base64 32>
-   LAB_DB_HOST=<reachable MySQL host>   # not host.docker.internal on Linux
+   LAB_DB_HOST=<reachable MySQL host>   # can be anywhere reachable; not host.docker.internal on Linux
    ```
 
 4. **Open the firewall** for 80/443 (and 22 for SSH) — e.g. `ufw allow OpenSSH && ufw allow 80 && ufw allow 443 && ufw enable`. Postgres and Qdrant are already bound to loopback and stay private.
 
-5. **Bring it up:**
+5. **Bring it up — one command:**
 
    ```bash
-   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+   docker compose up -d
    ```
 
 Caddy fetches the certificate on the first request and renews it automatically.
@@ -158,19 +162,19 @@ The steps above are the default deployment: the app connects to an **external In
 
 ### Optionally bundling MySQL on the same droplet
 
-For standalone installs with no separate InteLIS server, layer the optional `docker-compose.local-lab.yml` overlay on top to run MySQL as part of the stack (see [Optional local InteLIS MySQL](#optional-local-intelis-mysql)). To combine it with the VPS proxy, start from `.env.local-lab.example` and chain all three compose files — order matters, so the prod overlay comes last:
+For standalone installs with no separate InteLIS server, the optional `docker-compose.local-lab.yml` overlay runs MySQL as part of the stack (see [Optional local InteLIS MySQL](#optional-local-intelis-mysql)). Start from `.env.local-lab.example` — which already wires up `COMPOSE_FILE` — and just add the prod overlay to that line so the single command still does everything:
 
 ```bash
 cp .env.local-lab.example .env
 # In .env, on top of the local-lab values:
 #   add  SITE_ADDRESS=insights.example.com  and  AUTH_URL=https://insights.example.com
-#   extend the COMPOSE_FILE line to include the prod overlay:
+#   extend the COMPOSE_FILE line (order matters — prod overlay last):
 #     COMPOSE_FILE=docker-compose.yml:docker-compose.local-lab.yml:docker-compose.prod.yml
 
 # Place the InteLIS dump before first boot (it imports only on an empty volume):
 cp <your-dump>.sql.gz mysql-init/01-intelis-dump.sql.gz
 
-docker compose up -d   # COMPOSE_FILE makes this pick up all three overlays
+docker compose up -d   # one command — COMPOSE_FILE pulls in all three overlays
 ```
 
 Bundling MySQL adds real memory and storage load — size the droplet for the dataset (≈8 GB RAM for a typical InteLIS dump) and remember that **you** now own its backups. Keep the bundled MySQL off the firewall; it stays on loopback / the compose network.
